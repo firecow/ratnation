@@ -13,7 +13,7 @@ A service discovery application, used by ratkings and ratunderlings, must be exp
 Controlplane application starting rathole servers based on council state, must be exposed to the internet
 
 ### [ratunderling](https://github.com/firecow/ratunderling) 
-Dataplane application starting rathole clients and proxies based on council state and command line options
+Dataplane application starting rathole clients and socat proxies based on council state and command line options
 
 
 ## Quickstart
@@ -23,6 +23,6 @@ Install `docker` and initialize a swarm `docker swarm init`
 See [stack.yml](./stack.yml) for deployment details
 
 ```bash
-export HOSTNAME=$(hostname)
+export HOSTNAME=$(docker info --format '{{ .Swarm.NodeAddr }}')
 docker stack deploy -c stack.yml ratnation
 ```

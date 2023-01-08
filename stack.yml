@@ -44,10 +44,10 @@ services:
   # Alpha stack/pod
   ratunderling-alpha:
     networks: [alpha]
-    image: firecow/ratunderlings
+    image: firecow/ratunderling
     command:
-      --rathole "name=alpha to=echoserver-alpha:8080"
-      --ratproxy "name=beta listen=2183"
+      --rathole="name=alpha local_addr=echoserver-alpha:8080"
+      --socat="name=beta port=2183"
   echoserver-gamma:
     networks: [alpha]
     image: jmalloc/echo-server
@@ -55,10 +55,10 @@ services:
   # Beta stack/pod
   ratunderling-beta:
     networks: [beta]
-    image: firecow/ratunderlings
+    image: firecow/ratunderling
     command:
-      --rathole "name=beta to=echoserver-beta:8080"
-      --ratproxy "name=alpha listen=2183"
+      --rathole="name=beta local_addr=echoserver-beta:8080"
+      --socat="name=alpha port=2183"
   echoserver-beta:
     networks: [beta]
     image: jmalloc/echo-server
