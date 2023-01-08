@@ -22,10 +22,8 @@ services:
   ratking1:
     image: firecow/ratking
     networks: [host]
-    environment:
-      RATKING_HOSTNAME: $HOSTNAME
-      RATKING_LISTEN_PORT: 2333
-      RATKING_PORT_RANGE: 5000-5009
+    command:
+      --rathole="bind_addr=0.0.0.0:2333 hostname=$HOSTNAME ports=5000-5009"
     ports:
       - "2333:2333"
       - "5000-5009:5000-5009"
@@ -33,32 +31,32 @@ services:
   ratking2:
     image: firecow/ratking
     networks: [host]
-    environment:
-      RATKING_HOSTNAME: $HOSTNAME
-      RATKING_LISTEN_PORT: 2334
-      RATKING_PORT_RANGE: 5010-5019
+    command:
+      --rathole="bind_addr=0.0.0.0:2334 hostname=$HOSTNAME ports=5010-5019"
+      --rathole="bind_addr=0.0.0.0:2335 hostname=$HOSTNAME ports=5020-5021"
     ports:
       - "2334:2334"
+      - "2335:2335"
       - "5010-5019:5010-5019"
 
   # Alpha stack/pod
   ratunderling-alpha:
-    networks: [alpha]
     image: firecow/ratunderling
+    networks: [alpha]
     command:
       --rathole="name=alpha local_addr=echoserver-alpha:8080"
       --socat="name=beta port=2183"
   echoserver-gamma:
-    networks: [alpha]
     image: jmalloc/echo-server
+    networks: [alpha]
 
   # Beta stack/pod
   ratunderling-beta:
-    networks: [beta]
     image: firecow/ratunderling
+    networks: [beta]
     command:
       --rathole="name=beta local_addr=echoserver-beta:8080"
       --socat="name=alpha port=2183"
   echoserver-beta:
-    networks: [beta]
     image: jmalloc/echo-server
+    networks: [beta]
