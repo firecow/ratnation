@@ -59,7 +59,6 @@ services:
     command: |
       --rathole "name=beta to=echoserver-beta:8080"
       --ratproxy "name=alpha listen=2183"
-
   echoserver-beta:
     networks: [beta]
     image: jmalloc/echo-server
