@@ -1,0 +1,65 @@
+---
+version: "3.9"
+
+networks:
+  host:
+    name: host
+    external: true
+  alpha:
+    name: alpha
+    attachable: true
+  beta:
+    name: beta
+    attachable: true
+
+services:
+  ratcouncil:
+    image: firecow/ratcouncil
+    networks: [host]
+    ports:
+      - "8080:8080"
+
+  ratking1:
+    image: firecow/ratking
+    networks: [host]
+    environment:
+      RATKING_HOSTNAME: $HOSTNAME
+      RATKING_LISTEN_PORT: 2333
+      RATKING_PORT_RANGE: 5000-5009
+    ports:
+      - "2333:2333"
+      - "5000-5009:5000-5009"
+
+  ratking2:
+    image: firecow/ratking
+    networks: [host]
+    environment:
+      RATKING_HOSTNAME: $HOSTNAME
+      RATKING_LISTEN_PORT: 2334
+      RATKING_PORT_RANGE: 5010-5019
+    ports:
+      - "2334:2334"
+      - "5010-5019:5010-5019"
+
+  # Alpha stack/pod
+  ratunderling-alpha:
+    networks: [alpha]
+    image: firecow/ratunderlings
+    command: |
+      --rathole "name=alpha to=echoserver-alpha:8080"
+      --ratproxy "name=beta listen=2183"
+  echoserver-gamma:
+    networks: [alpha]
+    image: jmalloc/echo-server
+
+  # Beta stack/pod
+  ratunderling-beta:
+    networks: [beta]
+    image: firecow/ratunderlings
+    command: |
+      --rathole "name=beta to=echoserver-beta:8080"
+      --ratproxy "name=alpha listen=2183"
+
+  echoserver-beta:
+    networks: [beta]
+    image: jmalloc/echo-server
