@@ -10,7 +10,7 @@ Consists of three different applications to operate
 A service discovery application, used by ratkings and ratunderlings, must be exposed to the internet.
 
 ### [ratking](https://github.com/firecow/ratking)
-Controlplane application starting rathole servers based on council state, must be exposed to the internet, and have a range of ports avaiable to it.
+Controlplane application starting rathole servers based on council state, must be exposed to the internet
 
 ### [ratunderling](https://github.com/firecow/ratunderling) 
 Dataplane application starting rathole clients and proxies based on council state and command line options
