@@ -45,7 +45,7 @@ services:
   ratunderling-alpha:
     networks: [alpha]
     image: firecow/ratunderlings
-    command: |
+    command:
       --rathole "name=alpha to=echoserver-alpha:8080"
       --ratproxy "name=beta listen=2183"
   echoserver-gamma:
@@ -56,7 +56,7 @@ services:
   ratunderling-beta:
     networks: [beta]
     image: firecow/ratunderlings
-    command: |
+    command:
       --rathole "name=beta to=echoserver-beta:8080"
       --ratproxy "name=alpha listen=2183"
   echoserver-beta:
