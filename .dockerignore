@@ -1,6 +1,2 @@
-/.cego/
-/.idea/
-/.gitlab-ci-local/
-/node_modules/
 /src/king/server-*.toml
 /src/underling/client-*.toml

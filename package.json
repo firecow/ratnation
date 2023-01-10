@@ -1,0 +1,45 @@
+{
+  "name": "ratnation",
+  "type": "module",
+  "dependencies": {
+    "await-to-js": "3.0.0",
+    "execa": "6.1.0",
+    "find-my-way": "7.4.0",
+    "got": "12.5.3",
+    "raw-body": "2.5.1",
+    "yargs": "17.6.2"
+  },
+  "devDependencies": {
+    "eslint": "8.31.0"
+  },
+  "eslintConfig": {
+    "env": {
+      "es2022": true,
+      "node": true
+    },
+    "extends": [
+      "eslint:recommended"
+    ],
+    "rules": {
+      "quotes": "error",
+      "object-curly-spacing": "error",
+      "space-before-function-paren": [
+        "error",
+        "never"
+      ],
+      "semi": "error",
+      "comma-dangle": [
+        "error",
+        "only-multiline"
+      ],
+      "space-in-parens": "error",
+      "no-trailing-spaces": "error",
+      "no-multi-spaces": "error",
+      "arrow-spacing": "error",
+      "key-spacing": "error"
+    },
+    "parserOptions": {
+      "sourceType": "module"
+    }
+  }
+}
