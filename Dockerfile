@@ -1,9 +1,9 @@
-FROM alpine:3.17.0 as node_modules
+FROM alpine:3.17.1 as node_modules
 RUN apk add nodejs npm
 COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-progress --omit=dev
 
-FROM alpine:3.17.0
+FROM alpine:3.17.1
 
 RUN apk add nodejs socat && \
  wget -O rathole.zip https://github.com/rapiz1/rathole/releases/download/v0.4.7/rathole-x86_64-unknown-linux-musl.zip && \
