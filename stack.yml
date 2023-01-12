@@ -14,14 +14,14 @@ networks:
 
 services:
   ratcouncil:
-    image: firecow/ratnation
+    image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [host]
     command: council --port 8080
     ports:
       - { target: 8080, published: 8080, protocol: tcp, mode: host }
 
   ratking1:
-    image: firecow/ratnation
+    image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [host]
     command:
       king
@@ -34,7 +34,7 @@ services:
       - { target: 5001, published: 5001, protocol: tcp, mode: host }
 
   ratking2:
-    image: firecow/ratnation
+    image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [host]
     command:
       king
@@ -50,32 +50,32 @@ services:
       - { target: 5004, published: 5004, protocol: tcp, mode: host }
 
   # Alpha stack/pod
-  ratunderling-alpha:
-    image: firecow/ratnation
+  ratling-alpha:
+    image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [alpha]
-    ports:
-      - { published: 2183, target: 2183, protocol: tcp, mode: host }
+    # ports:
+    #   - { published: 2183, target: 2183, protocol: tcp, mode: host }
     command:
-      underling
+      ling
       --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
       --rathole="name=alpha local_addr=echoserver-alpha:8080"
-      --socat="name=beta port=2183"
+      --socat="name=beta bind_port=2183"
   echoserver-alpha:
     hostname: echoserver-alpha
     image: jmalloc/echo-server
     networks: [alpha]
 
   # Beta stack/pod
-  ratunderling-beta:
-    image: firecow/ratnation
+  ratling-beta:
+    image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [beta]
     ports:
       - { published: 2184, target: 2184, protocol: tcp, mode: host }
     command:
-      underling
+      ling
       --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
       --rathole="name=beta local_addr=echoserver-beta:8080"
-      --socat="name=alpha port=2184"
+      --socat="name=alpha bind_port=2184"
   echoserver-beta:
     image: jmalloc/echo-server
     hostname: echoserver-beta

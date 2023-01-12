@@ -3,4 +3,4 @@
 /.gitlab-ci-local/
 /node_modules/
 /src/king/server-*.toml
-/src/underling/client-*.toml
+/src/ling/client-*.toml

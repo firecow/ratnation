@@ -7,6 +7,7 @@
     "find-my-way": "7.4.0",
     "got": "12.5.3",
     "raw-body": "2.5.1",
+    "wait-promise": "0.4.1",
     "yargs": "17.6.2"
   },
   "devDependencies": {

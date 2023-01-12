@@ -20,6 +20,21 @@ export default async function putKing(req, res, state) {
         return res.end("location field cannot be null or undefined\n");
     }
 
+    if (data["readyServices"] == null) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        return res.end("readyServices field cannot be null or undefined\n");
+    }
+
+
+    for (const serviceName of data["readyServices"]) {
+        const service = state.services.find(s => s["name"] === serviceName);
+        if (!service.king_ready) {
+            service.king_ready = true;
+            state.revision++;
+        }
+    }
+
     for (const rathole of data["ratholes"]) {
         const king = state.kings.find(k => k["ports"] === rathole["ports"] && k["host"] === data["host"]);
         if (king) {
@@ -29,9 +44,7 @@ export default async function putKing(req, res, state) {
         state.kings.push({
             bind_port: rathole["bind_port"],
             ports: rathole["ports"],
-            used: [],
             host: data["host"],
-            location: data["location"],
             ping: Date.now(),
             shutting_down: false,
         });

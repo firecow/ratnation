@@ -1,6 +1,6 @@
-export class Config {
+export class KingConfig {
 
-    ratholeMap = new Map();
+    ratholes = [];
 
     constructor(argv) {
 
@@ -12,10 +12,10 @@ export class Config {
                 ratholeCnf[key] = pair.split("=")[1];
             }
             ratholeCnf["bind_port"] = Number(ratholeCnf["bind_port"]);
-            this.ratholeMap.set(ratholeCnf["bind_port"], ratholeCnf);
+            this.ratholes.push(ratholeCnf);
         }
 
-        if (this.ratholeMap.size === 0) {
+        if (this.ratholes.length === 0) {
             console.error("King must have a least one rathole defined in cli options");
             process.exit(1);
         }

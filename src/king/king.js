@@ -1,7 +1,8 @@
-import {Config} from "./config.js";
+import {KingConfig} from "./king-config.js";
 import {StateHandler} from "../state-handler.js";
-import {RatholeManager} from "./rathole-manager.js";
-import {ConfigSender} from "./config-sender.js";
+import {KingRatholeManager} from "./king-rathole-manager.js";
+import {KingSyncer} from "./king-syncer.js";
+import wait from "wait-promise";
 
 export const command = "king";
 export const description = "Start ratking";
@@ -9,17 +10,22 @@ export const description = "Start ratking";
 export async function handler(argv) {
     const councilHost = argv["council-host"];
     const host = argv["host"];
-    const config = new Config(argv);
-    const ratholeManager = new RatholeManager();
-    const configSender = new ConfigSender({councilHost, config, host, location: "mylocation"}); // TODO From cli options
+    const config = new KingConfig(argv);
+    const context = {state: null, readyServices: [], config, host, councilHost, location: "mylocation"}; // TODO: location from cli options
+    const ratholeManager = new KingRatholeManager(context);
+    const kingSyncer = new KingSyncer(context);
     const stateHandler = new StateHandler({
-        councilHost,
+        ...context,
         updatedFunc: (state) => {
-            ratholeManager.doit({host: argv["host"], councilHost, config, state});
+            context.state = state;
+            ratholeManager.doit();
         },
     });
+
     stateHandler.start();
-    configSender.start();
+    await wait.until(() => stateHandler.hasState());
+    kingSyncer.start();
+    console.log("msg=\"king ready\" service_type=ratking");
 }
 
 export function builder(yargs) {

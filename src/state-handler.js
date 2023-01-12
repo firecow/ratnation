@@ -12,6 +12,16 @@ export class StateHandler {
         this.#councilHost = councilHost;
     }
 
+    hasState() {
+        return this.#state !== null;
+    }
+
+    start() {
+        this.#fetchState().then(() => {
+            setTimeout(() => this.start(), 500);
+        }).catch(err => console.error(err));
+    }
+
     #update(newState) {
         this.#state = newState;
         this.#updatedFunc(newState);
@@ -27,11 +37,5 @@ export class StateHandler {
         if (this.#state === null || this.#state["revision"] !== newState["revision"]) {
             this.#update(newState);
         }
-    }
-
-    start() {
-        this.#fetchState().then(() => {
-            setTimeout(() => this.start(), 500);
-        }).catch(err => console.error(err));
     }
 }

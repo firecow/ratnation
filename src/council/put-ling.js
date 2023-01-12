@@ -1,7 +1,7 @@
 import rawBody from "raw-body";
 import crypto from "crypto";
 
-export default async function putUnderling(req, res, state) {
+export default async function putling(req, res, state) {
     const body = await rawBody(req);
     const data = JSON.parse(body);
     if (data["ratholes"] == null) {
@@ -15,11 +15,25 @@ export default async function putUnderling(req, res, state) {
         return res.end("prefered_location field cannot be null or undefined\n");
     }
 
+    for (const serviceName of data["readyServices"]) {
+        const service = state.services.find(s => s["name"] === serviceName);
+        if (!service.ling_ready) {
+            service.ling_ready = true;
+            state.revision++;
+        }
+    }
+
     for (const rathole of data["ratholes"]) {
 
-        const service = state.services.find(s => s["name"] === rathole["name"]);
+        let ling = state.lings.find(u => u["uuid"] === data["uuid"]);
+        if (!ling) {
+            ling = {uuid: data["uuid"], beat: Date.now()};
+            state.lings.push(ling);
+        }
+        ling.beat = Date.now();
+
+        const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_uuid"] === data["uuid"]);
         if (service) {
-            service["underling_ping"] = Date.now();
             res.setHeader("Content-Type", "text/plain; charset=utf-8");
             return res.end("ok");
         }
@@ -29,12 +43,12 @@ export default async function putUnderling(req, res, state) {
             name: rathole["name"],
             token: token,
             prefered_location: data["prefered_location"],
-            underling_ping: Date.now(),
-            location: null,
-            host: null,
+            ling_uuid: data["uuid"],
+            ling_ready: false,
             remote_port: null,
+            host: null,
             bind_port: null,
-            king_active: false,
+            king_ready: false,
         });
         state.revision++;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
