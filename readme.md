@@ -4,13 +4,13 @@ Service mesh based on [rathole](https://github.com/rapiz1/rathole) reverse tunne
 
 Consists of three different applications to operate
 
-### ratnation council
+### ratcouncil
 A service discovery application, used by ratkings and ratlings, must be exposed to the internet.
 
-### ratnation king
+### ratking
 Controlplane application starting rathole servers based on council state, must be exposed to the internet
 
-### ratnation ling
+### ratling
 Dataplane application managing ratholes and socat proxies based on council state and command line options
 
 
