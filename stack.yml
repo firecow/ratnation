@@ -53,8 +53,8 @@ services:
   ratling-alpha:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [alpha]
-    # ports:
-    #   - { published: 2183, target: 2183, protocol: tcp, mode: host }
+    ports:
+      - { published: 2183, target: 2183, protocol: tcp, mode: host }
     command:
       ling
       --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
