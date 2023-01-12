@@ -1,6 +1,6 @@
 # Ratnation 
 
-Service mesh based on [rathole](https://github.com/rapiz1/rathole) reverse tunnel application
+Service mesh based on [rathole](https://github.com/rapiz1/rathole) reverse tunnel application, ssh tunneling and socat
 
 Consists of three different applications to operate
 
