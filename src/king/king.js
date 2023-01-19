@@ -11,7 +11,7 @@ export async function handler(argv) {
     const councilHost = argv["council-host"];
     const host = argv["host"];
     const config = new KingConfig(argv);
-    const context = {state: null, readyServices: [], config, host, councilHost, location: "mylocation"}; // TODO: location from cli options
+    const context = {state: null, readyServiceIds: [], config, host, councilHost, location: "mylocation"}; // TODO: location from cli options
     const ratholeManager = new KingRatholeManager(context);
     const kingSyncer = new KingSyncer(context);
     const stateHandler = new StateHandler({

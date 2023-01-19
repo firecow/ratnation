@@ -12,8 +12,8 @@ export const description = "Start ratling";
 export async function handler(argv) {
     const councilHost = argv["council-host"];
     const config = new LingConfig(argv);
-    const uuid = argv["uuid"] ?? crypto.randomUUID();
-    const context = {config, state: null, readyServices: [], councilHost, uuid};
+    const lingId = argv["ling_id"] ?? crypto.randomUUID();
+    const context = {config, state: null, readyServiceIds: [], councilHost, lingId};
     const configSyncer = new LingSyncer(context);
     const socatManager = new LingSocatManager(context);
     const ratholeManager = new LingRatholeManager(context);
@@ -36,6 +36,11 @@ export function builder(yargs) {
         type: "string",
         description: "Council host to syncronize from",
         default: "http://localhost:8080",
+    });
+    yargs.options("ling_id", {
+        type: "string",
+        description: "Unique id of this specific ling instance",
+        optional: true,
     });
     yargs.options("rathole", {
         type: "array",

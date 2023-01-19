@@ -24,10 +24,10 @@ export class LingSocatManager {
         console.log(`msg="Started socat" service_type=ratling log.logger=socat-manager port=${bindPort} pid=${socat.pid} host=${service["host"]} remote_port=${service["remote_port"]}`);
         socat.stdout.pipe(process.stdout);
         socat.stderr.pipe(process.stderr);
-        socat.on("exit", (code) => {
+        socat.on("exit", async(code) => {
             console.info(`msg="Socat exited" process_exit_code=${code} service_type=ratling log.logger=socat-manager`);
             this.socapProcessMap.delete(bindPort);
-            this.doit();
+            await this.doit();
         });
         socat.on("error", (err) => {
             console.error(err.message);

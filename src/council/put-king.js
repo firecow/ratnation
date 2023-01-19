@@ -20,15 +20,15 @@ export default async function putKing(req, res, state) {
         return res.end("location field cannot be null or undefined\n");
     }
 
-    if (data["readyServices"] == null) {
+    if (data["ready_service_ids"] == null) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         return res.end("readyServices field cannot be null or undefined\n");
     }
 
 
-    for (const serviceName of data["readyServices"]) {
-        const service = state.services.find(s => s["name"] === serviceName);
+    for (const serviceId of data["ready_service_ids"]) {
+        const service = state.services.find(s => s["service_id"] === serviceId);
         if (!service.king_ready) {
             service.king_ready = true;
             state.revision++;

@@ -6,11 +6,17 @@ npx nodemon src/index.js council &
 
 npx nodemon src/index.js king \
   --host="$(hostname -f)" \
-  --rathole="bind_port=2334 ports=5000-5009" \
-  &
+  --rathole="bind_port=2334 ports=5000-5009" &
+
 npx nodemon src/index.js ling \
+  --ling_id="0a976e7a-87c5-4549-9431-e4881c740cec" \
   --rathole="name=alpha local_addr=localhost:3000" \
   --socat="name=alpha bind_port=2189" &
+
+npx nodemon src/index.js ling \
+  --ling_id="0573442b-5491-444e-9c63-c2907079ff5f" \
+  --rathole="name=alpha local_addr=localhost:3000" \
+  --socat="name=alpha bind_port=2190" &
 
 docker run --rm -p 3000:8080 jmalloc/echo-server &
 

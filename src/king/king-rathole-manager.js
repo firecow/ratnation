@@ -15,10 +15,10 @@ export class KingRatholeManager {
         console.log(`msg="Started rathole" service_type=ratking bind_addr=${bindPort} pid=${rathole.pid}`);
         rathole.stdout.pipe(process.stdout);
         rathole.stderr.pipe(process.stderr);
-        rathole.on("exit", (code) => {
+        rathole.on("exit", async(code) => {
             console.info(`msg="Rathole exited" process_exit_code=${code} service_type=ratking log.logger=rathole-manager`);
             this.ratholeProcessMap.delete(bindPort);
-            this.doit();
+            await this.doit();
         });
 
         this.ratholeProcessMap.set(bindPort, rathole);
@@ -38,7 +38,7 @@ export class KingRatholeManager {
         ];
 
         for (const service of services) {
-            lines.push(`[server.services.${service["name"]}]`);
+            lines.push(`[server.services.${service["service_id"].replace(/:/g, "-")}]`);
             lines.push(`token = "${service["token"]}"`);
             lines.push(`bind_addr = "0.0.0.0:${service["remote_port"]}"`);
         }
@@ -47,7 +47,7 @@ export class KingRatholeManager {
         await fs.promises.writeFile(`src/king/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
         this.#ensureRathole({bindPort, ratholeFile});
 
-        return services.map((s) => s["name"]);
+        return services.map((s) => s["service_id"]);
     }
 
     async doit() {
@@ -55,6 +55,6 @@ export class KingRatholeManager {
         for (const ratholeCnf of this.context.config.ratholes) {
             readyServices = readyServices.concat(await this.#each(ratholeCnf));
         }
-        this.context.readyServices = readyServices;
+        this.context.readyServiceIds = readyServices;
     }
 }

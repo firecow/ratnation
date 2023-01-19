@@ -14,7 +14,7 @@ export class KingSyncer {
                 ratholes: this.context.config.ratholes,
                 host: this.context.host,
                 location: this.context.location,
-                readyServices: this.context.readyServices,
+                ready_service_ids: this.context.readyServiceIds,
             },
         }));
         if (err || response.statusCode !== 200) {

@@ -9,11 +9,10 @@ export class LingSyncer {
 
     async #put() {
         const ratholes = Array.from(this.context.config.ratholeMap.values());
-        const uuid = this.context.uuid;
-        const readyServices = this.context.readyServices;
+        const readyServiceIds = this.context.readyServiceIds;
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
             method: "PUT",
-            json: {uuid, ratholes, readyServices, prefered_location: "mylocation"}, // TODO: From cli options
+            json: {ling_id: this.context.lingId, ratholes, ready_service_ids: readyServiceIds, prefered_location: "mylocation"}, // TODO: From cli options
         }));
         if (err || response.statusCode !== 200) {
             console.error("msg=\"Failed to sync with council\" service_type=ratling", err.message, response?.statusCode ?? 0);
