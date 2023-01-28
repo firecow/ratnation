@@ -6,6 +6,7 @@ export class StateHandler {
     #state = null;
     #updatedFunc;
     #councilHost;
+    #timer = -1;
 
     constructor({councilHost, updatedFunc}) {
         this.#updatedFunc = updatedFunc;
@@ -16,9 +17,13 @@ export class StateHandler {
         return this.#state !== null;
     }
 
+    stop() {
+        clearTimeout(this.#timer);
+    }
+
     start() {
         this.#fetchState().then(() => {
-            setTimeout(() => this.start(), 500);
+            this.#timer = setTimeout(() => this.start(), 500);
         }).catch(err => console.error(err));
     }
 
