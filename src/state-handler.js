@@ -22,7 +22,7 @@ export class StateHandler {
     }
 
     start() {
-        this.#fetchState().then(() => {
+        this.fetchState().then(() => {
             this.#timer = setTimeout(() => this.start(), 500);
         }).catch(err => console.error(err));
     }
@@ -32,7 +32,7 @@ export class StateHandler {
         this.#updatedFunc(newState);
     }
 
-    async #fetchState() {
+    async fetchState() {
         const [err, response] = await to(got(`${this.#councilHost}/state`));
         if (err || response.statusCode !== 200) {
             return console.error("Failed to fetch state from council", err.message, response?.statusCode ?? 0);
