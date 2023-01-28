@@ -8,23 +8,28 @@ export class LingRatholeManager {
         this.context = context;
     }
 
+    killProcesses(signal) {
+        this.ratholeProcessMap.forEach(rathole => {
+            rathole.kill(signal);
+        });
+    }
+
     #ensureRathole({kingBindAddr, ratholeFile}) {
         if (this.ratholeProcessMap.has(kingBindAddr)) return;
 
-        const rathole = execa("rathole", [ratholeFile], {cwd: "src/ling/"});
-        console.log(`msg"Started rathole" service_type=ratling log.logger=socat-manager remote_addr=${kingBindAddr} pid=${rathole.pid}`);
+        const rathole = execa("rathole", ["--client", ratholeFile], {cwd: "src/ling/", env: {RUST_LOG: "warn"}});
+        console.log(`msg="Started rathole client" service.type=ratling log.logger=rathole-manager remote_addr=${kingBindAddr} pid=${rathole.pid}`);
         rathole.stdout.pipe(process.stdout);
         rathole.stderr.pipe(process.stderr);
         rathole.on("exit", async(code) => {
-            console.info(`msg="Rathole exited" process_exit_code=${code} service_type=ratling log.logger=rathole-manager`);
+            console.info(`msg="Rathole exited" process_exit_code=${code} service.type=ratling log.logger=rathole-manager`);
             this.ratholeProcessMap.delete(kingBindAddr);
-            await this.doit();
         });
 
         this.ratholeProcessMap.set(kingBindAddr, rathole);
     }
 
-    async doit() {
+    async stateChanged() {
         const state = this.context.state;
         const config = this.context.config;
         const lingId = this.context.lingId;
@@ -44,11 +49,9 @@ export class LingRatholeManager {
                 lines.push(`local_addr = "${ratholeCnf["local_addr"]}"`);
             }
 
-            const ratholeFile = `client-${kingBindAddr.replace(/:/g, "-")}-${lingId.replace(/:/g, "-")}.toml`;
-            await fs.promises.writeFile(`src/ling/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
-
+            const ratholeFile = `rathole-client-${lingId.replace(/:/g, "-")}.toml`;
+            fs.writeFileSync(`src/ling/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
             this.#ensureRathole({kingBindAddr, ratholeFile});
-
         }
         this.context.readyServiceIds = services.map(s => s["service_id"]);
     }

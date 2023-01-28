@@ -32,7 +32,7 @@ export async function handler(argv) {
     const server = http.createServer((req, res) => router.lookup(req, res));
     server.listen(argv["port"]);
     await new Promise(resolve => server.once("listening", resolve));
-    console.log("msg=\"council ready\" service_type=ratcouncil");
+    console.log("msg=\"council ready\" service.type=ratcouncil");
 
     provisioner.start();
 }

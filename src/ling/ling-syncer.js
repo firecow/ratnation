@@ -3,6 +3,8 @@ import {to} from "await-to-js";
 
 export class LingSyncer {
 
+    #timer = -1;
+
     constructor(context) {
         this.context = context;
     }
@@ -12,16 +14,26 @@ export class LingSyncer {
         const readyServiceIds = this.context.readyServiceIds;
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
             method: "PUT",
-            json: {ling_id: this.context.lingId, ratholes, ready_service_ids: readyServiceIds, prefered_location: "mylocation"}, // TODO: From cli options
+            json: {
+                ling_id: this.context.lingId,
+                shutting_down: this.context.shuttingDown,
+                ratholes,
+                ready_service_ids: readyServiceIds,
+                prefered_location: "mylocation"
+            },
         }));
         if (err || response.statusCode !== 200) {
-            console.error("msg=\"Failed to sync with council\" service_type=ratling", err.message, response?.statusCode ?? 0);
+            console.error("msg=\"Failed to sync with council\" service.type=ratling", err.message, response?.statusCode ?? 0);
         }
+    }
+
+    stop() {
+        clearTimeout(this.#timer);
     }
 
     start() {
         this.#put().then(() => {
-            setTimeout(() => this.start(), 1000);
+            this.#timer = setTimeout(() => this.start(), 1000);
         });
     }
 }

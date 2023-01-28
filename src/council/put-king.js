@@ -26,7 +26,6 @@ export default async function putKing(req, res, state) {
         return res.end("readyServices field cannot be null or undefined\n");
     }
 
-
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);
         if (!service.king_ready) {

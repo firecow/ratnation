@@ -18,7 +18,7 @@ export class KingSyncer {
             },
         }));
         if (err || response.statusCode !== 200) {
-            console.error("msg=\"Failed to sync with council\" service_type=ratking", err.message, response?.statusCode ?? 0);
+            console.error("msg=\"Failed to sync with council\" service.type=ratking", err.message, response?.statusCode ?? 0);
         }
     }
 

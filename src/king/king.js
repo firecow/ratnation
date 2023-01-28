@@ -18,14 +18,14 @@ export async function handler(argv) {
         ...context,
         updatedFunc: (state) => {
             context.state = state;
-            ratholeManager.doit();
+            ratholeManager.stateChanged();
         },
     });
 
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
     kingSyncer.start();
-    console.log("msg=\"king ready\" service_type=ratking");
+    console.log("msg=\"king ready\" service.type=ratking");
 }
 
 export function builder(yargs) {
@@ -41,6 +41,6 @@ export function builder(yargs) {
     });
     yargs.options("rathole", {
         type: "array",
-        description: "Rathole servers to open if council state matches",
+        description: "Rathole servers to open",
     });
 }

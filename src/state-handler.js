@@ -24,7 +24,7 @@ export class StateHandler {
     start() {
         this.fetchState().then(() => {
             this.#timer = setTimeout(() => this.start(), 500);
-        }).catch(err => console.error(err));
+        });
     }
 
     #update(newState) {

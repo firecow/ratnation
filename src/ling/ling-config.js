@@ -3,20 +3,20 @@ import assert from "assert";
 export class LingConfig {
 
     ratholeMap = new Map();
-    socatMap = new Map();
+    proxyMap = new Map();
 
     constructor(argv) {
-        for (const socatArg of argv["socat"] ?? []) {
-            const socatCnf = {};
-            const pairs = socatArg.split(" ");
+        for (const proxyArg of argv["proxy"] ?? []) {
+            const proxyCnf = {};
+            const pairs = proxyArg.split(" ");
             for (const pair of pairs) {
                 const key = pair.split("=")[0];
-                socatCnf[key] = pair.split("=")[1];
+                proxyCnf[key] = pair.split("=")[1];
             }
-            socatCnf["bind_port"] = Number(socatCnf["bind_port"]);
-            assert(socatCnf["bind_port"] != null, "--socat must have 'bind_port' field");
-            assert(socatCnf["name"] != null, "--socat must have 'name' field");
-            this.socatMap.set(socatCnf["name"], socatCnf);
+            proxyCnf["bind_port"] = Number(proxyCnf["bind_port"]);
+            assert(proxyCnf["bind_port"] != null, "--proxy must have 'bind_port' field");
+            assert(proxyCnf["name"] != null, "--proxy must have 'name' field");
+            this.proxyMap.set(proxyCnf["name"], proxyCnf);
         }
 
         for (const ratholeArg of argv["rathole"] ?? []) {

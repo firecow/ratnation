@@ -3,6 +3,7 @@ import assert from "assert";
 import * as kingCmd from "./king/king.js";
 import * as lingCmd from "./ling/ling.js";
 import * as councilCmd from "./council/council.js";
+import * as requesterCmd from "./debug/requester.js";
 
 Array.prototype.random = function() {
     return this[Math.floor((Math.random() * this.length))];
@@ -22,6 +23,7 @@ const y = yargs(process.argv.slice(2))
     .command(councilCmd)
     .command(kingCmd)
     .command(lingCmd)
+    .command(requesterCmd)
     .demandCommand()
     .fail((msg, err) => {
         if (!err) throw new assert.AssertionError({message: msg});

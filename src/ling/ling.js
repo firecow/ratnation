@@ -3,8 +3,9 @@ import wait from "wait-promise";
 import {LingConfig} from "./ling-config.js";
 import {LingSyncer} from "./ling-syncer.js";
 import {StateHandler} from "../state-handler.js";
-import {LingSocatManager} from "./ling-socat-manager.js";
 import {LingRatholeManager} from "./ling-rathole-manager.js";
+import {initShutdownHandlers} from "./ling-shutdown.js";
+import {LingTraefikManager} from "./ling-traefik-manager.js";
 
 export const command = "ling";
 export const description = "Start ratling";
@@ -13,22 +14,24 @@ export async function handler(argv) {
     const councilHost = argv["council-host"];
     const config = new LingConfig(argv);
     const lingId = argv["ling_id"] ?? crypto.randomUUID();
-    const context = {config, state: null, readyServiceIds: [], councilHost, lingId};
+    const context = {config, state: null, readyServiceIds: [], shuttingDown: false, councilHost, lingId};
     const configSyncer = new LingSyncer(context);
-    const socatManager = new LingSocatManager(context);
+    const traefikManager = new LingTraefikManager(context);
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
         ...context,
         updatedFunc: (state) => {
             context.state = state;
-            socatManager.doit();
-            ratholeManager.doit();
+            traefikManager.stateChanged();
+            ratholeManager.stateChanged();
         },
     });
+    initShutdownHandlers({context, stateHandler, configSyncer, traefikManager, ratholeManager});
+
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
     configSyncer.start();
-    console.log("msg=\"ling ready\" service_type=ratling");
+    console.log("msg=\"ling ready\" service.type=ratling");
 }
 
 export function builder(yargs) {
@@ -44,10 +47,10 @@ export function builder(yargs) {
     });
     yargs.options("rathole", {
         type: "array",
-        description: "Rathole clients to open if council state matches",
+        description: "Rathole clients to open",
     });
-    yargs.options("socat", {
+    yargs.options("proxy", {
         type: "array",
-        description: "Socats to open based on config if council state matches",
+        description: "Traefik proxies to open",
     });
 }

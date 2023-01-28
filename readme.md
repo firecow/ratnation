@@ -1,6 +1,6 @@
 # Ratnation 
 
-Service mesh based on [rathole](https://github.com/rapiz1/rathole), ssh tunneling and socat
+Service mesh based on [rathole](https://github.com/rapiz1/rathole) and [traefik](https://github.com/traefik/traefik)
 
 Consists of three different applications to operate
 
@@ -8,21 +8,26 @@ Consists of three different applications to operate
 A service discovery application, used by ratkings and ratlings, must be exposed to the internet.
 
 ### ratking
-Controlplane application starting rathole servers based on council state, must be exposed to the internet
+Controlplane application starting rathole servers, must be exposed to the internet
 
 ### ratling
-Dataplane application managing ratholes and socat proxies based on council state and command line options
+Dataplane application managing rathole clients and traefik proxies based
 
 
 ## Quickstart
 
 Install `docker` and call `docker swarm init`
 
-See [stack.yml](./stack.yml) for deployment details
+See [stack.yml](./examples/docker-swarm/stack.yml) for deployment configuration
 
 ```bash
-DOCKER_SWARN_NODE_IP=$(hostname -I | cut -d' ' -f1)
-export DOCKER_SWARN_NODE_IP
-echo "DOCKER_SWARN_NODE_IP=$DOCKER_SWARN_NODE_IP"
-docker stack deploy -c stack.yml ratnation
+./deploy_stack.sh
+```
+
+## Development
+
+Starts applications with code reloading capabilities via nodemon
+
+```
+./start_dev.sh
 ```

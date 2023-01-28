@@ -19,6 +19,11 @@ export default async function putling(req, res, state) {
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         return res.end("ready_service_ids field cannot be null or undefined\n");
     }
+    if (data["shutting_down"] == null) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        return res.end("shutting_down field cannot be null or undefined\n");
+    }
 
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);
@@ -32,10 +37,14 @@ export default async function putling(req, res, state) {
 
         let ling = state.lings.find(u => u["ling_id"] === data["ling_id"]);
         if (!ling) {
-            ling = {ling_id: data["ling_id"], beat: Date.now()};
+            ling = {ling_id: data["ling_id"], beat: Date.now(), shutting_down: data["shutting_down"]};
             state.lings.push(ling);
         }
         ling.beat = Date.now();
+        if (ling.shutting_down !== data["shutting_down"]) {
+            ling.shutting_down = data["shutting_down"];
+            state.revision++;
+        }
 
         const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_id"] === data["ling_id"]);
         if (service) {
