@@ -13,7 +13,7 @@ export async function handler(argv) {
     const config = new KingConfig(argv);
     const context = {state: null, readyServiceIds: [], config, host, councilHost, location: "mylocation"}; // TODO: location from cli options
     const ratholeManager = new KingRatholeManager(context);
-    const kingSyncer = new KingSyncer(context);
+    const syncer = new KingSyncer(context);
     const stateHandler = new StateHandler({
         ...context,
         updatedFunc: (state) => {
@@ -24,7 +24,7 @@ export async function handler(argv) {
 
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
-    kingSyncer.start();
+    syncer.start();
     console.log("msg=\"king ready\" service.type=ratking");
 }
 

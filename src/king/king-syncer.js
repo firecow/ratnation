@@ -3,11 +3,13 @@ import {to} from "await-to-js";
 
 export class KingSyncer {
 
+    #timer = -1;
+
     constructor(context) {
         this.context = context;
     }
 
-    async #put() {
+    async #sync() {
         const [err, response] = await to(got(`${this.context.councilHost}/king`, {
             method: "PUT",
             json: {
@@ -22,9 +24,14 @@ export class KingSyncer {
         }
     }
 
+    async stop() {
+        clearTimeout(this.#timer);
+        await this.#sync();
+    }
+
     start() {
-        this.#put().then(() => {
-            setTimeout(() => this.start(), 1000);
+        this.#sync().then(() => {
+            this.#timer = setTimeout(() => this.start(), 1000);
         });
     }
 }
