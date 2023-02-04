@@ -15,7 +15,7 @@ export async function handler(argv) {
     const config = new LingConfig(argv);
     const lingId = argv["ling_id"] ?? crypto.randomUUID();
     const context = {config, state: null, readyServiceIds: [], shuttingDown: false, councilHost, lingId};
-    const configSyncer = new LingSyncer(context);
+    const syncer = new LingSyncer(context);
     const traefikManager = new LingTraefikManager(context);
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
@@ -26,11 +26,11 @@ export async function handler(argv) {
             ratholeManager.stateChanged();
         },
     });
-    initShutdownHandlers({context, stateHandler, configSyncer, traefikManager, ratholeManager});
+    initShutdownHandlers({context, stateHandler, syncer, traefikManager, ratholeManager});
 
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
-    configSyncer.start();
+    syncer.start();
     console.log("msg=\"ling ready\" service.type=ratling");
 }
 

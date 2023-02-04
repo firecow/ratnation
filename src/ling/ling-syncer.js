@@ -9,7 +9,7 @@ export class LingSyncer {
         this.context = context;
     }
 
-    async #put() {
+    async #sync() {
         const ratholes = Array.from(this.context.config.ratholeMap.values());
         const readyServiceIds = this.context.readyServiceIds;
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
@@ -27,12 +27,13 @@ export class LingSyncer {
         }
     }
 
-    stop() {
+    async stop() {
         clearTimeout(this.#timer);
+        await this.#sync();
     }
 
     start() {
-        this.#put().then(() => {
+        this.#sync().then(() => {
             this.#timer = setTimeout(() => this.start(), 1000);
         });
     }
