@@ -10,15 +10,13 @@ export class LingSyncer {
     }
 
     async #sync() {
-        const ratholes = Array.from(this.context.config.ratholeMap.values());
-        const readyServiceIds = this.context.readyServiceIds;
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
             method: "PUT",
             json: {
                 ling_id: this.context.lingId,
                 shutting_down: this.context.shuttingDown,
-                ratholes,
-                ready_service_ids: readyServiceIds,
+                ratholes: Array.from(this.context.config.ratholeMap.values()),
+                ready_service_ids: this.context.readyServiceIds,
                 prefered_location: "mylocation"
             },
         }));
