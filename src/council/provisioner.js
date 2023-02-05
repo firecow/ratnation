@@ -1,4 +1,3 @@
-
 export class Provisioner {
 
     constructor({state}) {
@@ -25,7 +24,7 @@ export class Provisioner {
             if (!king) return console.warn(`msg="Could not find suited king for ${service.name}" service.type=ratcouncil`);
             port = this.#getUnusedPort(state, king);
             retries--;
-        } while(port == null && retries !== 0);
+        } while (port == null && retries !== 0);
 
         if (port == null) {
             return console.error(`msg="Did not find available remote_port on any kings for ${service.name}" service.type=ratcouncil`);

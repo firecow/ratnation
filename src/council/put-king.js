@@ -38,6 +38,11 @@ export default async function putKing(req, res, state, provisioner) {
     for (const rathole of data["ratholes"]) {
         const king = state.kings.find(k => k["ports"] === rathole["ports"] && k["host"] === data["host"]);
         if (king) {
+            if (king.shutting_down !== data["shutting_down"]) {
+                king.shutting_down = data["shutting_down"];
+                state.revision++;
+                await provisioner.provision();
+            }
             king.ping = Date.now();
             continue;
         }

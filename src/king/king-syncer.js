@@ -13,6 +13,7 @@ export class KingSyncer {
         const [err, response] = await to(got(`${this.context.councilHost}/king`, {
             method: "PUT",
             json: {
+                shutting_down: this.context.shuttingDown,
                 ratholes: this.context.config.ratholes,
                 host: this.context.host,
                 location: this.context.location,

@@ -22,7 +22,7 @@ export async function handler(argv) {
         defaultRoute: (req, res) => {
             res.statusCode = 404;
             res.end();
-        }
+        },
     });
 
     router.on("GET", "/state", (req, res) => getState(req, res, state));

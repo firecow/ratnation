@@ -4,7 +4,7 @@ import {LingConfig} from "./ling-config.js";
 import {LingSyncer} from "./ling-syncer.js";
 import {StateHandler} from "../state-handler.js";
 import {LingRatholeManager} from "./ling-rathole-manager.js";
-import {initShutdownHandlers} from "./ling-shutdown.js";
+import {initLingShutdownHandlers} from "./ling-shutdown.js";
 import {LingTraefikManager} from "./ling-traefik-manager.js";
 
 export const command = "ling";
@@ -26,7 +26,7 @@ export async function handler(argv) {
             ratholeManager.stateChanged();
         },
     });
-    initShutdownHandlers({context, stateHandler, syncer, traefikManager, ratholeManager});
+    initLingShutdownHandlers({context, stateHandler, syncer, traefikManager, ratholeManager});
 
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());

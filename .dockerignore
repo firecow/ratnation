@@ -1,2 +1,2 @@
-/src/king/server-*.toml
-/src/ling/client-*.toml
+/src/king/*.toml
+/src/ling/*.toml

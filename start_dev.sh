@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
-trap "docker rm -f ratnation-echo-server" SIGINT
-
 npx nodemon src/index.js council &
 
 npx nodemon src/index.js king \

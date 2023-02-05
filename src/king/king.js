@@ -2,6 +2,7 @@ import {KingConfig} from "./king-config.js";
 import {StateHandler} from "../state-handler.js";
 import {KingRatholeManager} from "./king-rathole-manager.js";
 import {KingSyncer} from "./king-syncer.js";
+import {initKingShutdownHandlers} from "./king-shutdown.js";
 import wait from "wait-promise";
 
 export const command = "king";
@@ -11,7 +12,7 @@ export async function handler(argv) {
     const councilHost = argv["council-host"];
     const host = argv["host"];
     const config = new KingConfig(argv);
-    const context = {state: null, readyServiceIds: [], config, host, councilHost, location: "mylocation"}; // TODO: location from cli options
+    const context = {state: null, readyServiceIds: [], config, host, councilHost, shuttingDown: false, location: "mylocation"}; // TODO: location from cli options
     const ratholeManager = new KingRatholeManager(context);
     const syncer = new KingSyncer(context);
     const stateHandler = new StateHandler({
@@ -21,6 +22,7 @@ export async function handler(argv) {
             ratholeManager.stateChanged();
         },
     });
+    initKingShutdownHandlers({context, stateHandler, syncer, ratholeManager});
 
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
@@ -37,7 +39,7 @@ export function builder(yargs) {
     yargs.options("host", {
         type: "string",
         description: "Host (domain or ip)",
-        demand: true
+        demand: true,
     });
     yargs.options("rathole", {
         type: "array",
