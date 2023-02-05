@@ -41,15 +41,8 @@ export class Provisioner {
         console.log(`msg="'${service.name}' provisioned to ${king.host}:${service.bind_port}, exposed on ${king.host}:${service.remote_port}" service.type=ratcouncil`);
     }
 
-    async #provision() {
+    async provision() {
         const unprovisioned = this.state.services.filter(s => s.bind_port === null);
         unprovisioned.forEach(u => this.#eachUnprovisioned(this.state, u));
     }
-
-    start() {
-        this.#provision().then(() => {
-            setTimeout(() => this.start(), 100);
-        });
-    }
-
 }

@@ -1,7 +1,7 @@
 import rawBody from "raw-body";
 import crypto from "crypto";
 
-export default async function putling(req, res, state) {
+export default async function putling(req, res, state, provisioner) {
     const body = await rawBody(req);
     const data = JSON.parse(body);
     if (data["ratholes"] == null) {
@@ -30,6 +30,7 @@ export default async function putling(req, res, state) {
         if (!service.ling_ready) {
             service.ling_ready = true;
             state.revision++;
+            await provisioner.provision();
         }
     }
 
@@ -44,6 +45,7 @@ export default async function putling(req, res, state) {
         if (ling.shutting_down !== data["shutting_down"]) {
             ling.shutting_down = data["shutting_down"];
             state.revision++;
+            await provisioner.provision();
         }
 
         const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_id"] === data["ling_id"]);
@@ -66,6 +68,7 @@ export default async function putling(req, res, state) {
             king_ready: false,
         });
         state.revision++;
+        await provisioner.provision();
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         res.end("ok");
     }

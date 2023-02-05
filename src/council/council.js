@@ -1,7 +1,7 @@
 import http from "http";
 import findmyway from "find-my-way";
 import {Provisioner} from "./provisioner.js";
-import putling from "./put-ling.js";
+import putLing from "./put-ling.js";
 import getState from "./get-state.js";
 import putKing from "./put-king.js";
 
@@ -26,15 +26,13 @@ export async function handler(argv) {
     });
 
     router.on("GET", "/state", (req, res) => getState(req, res, state));
-    router.on("PUT", "/ling", (req, res) => putling(req, res, state));
-    router.on("PUT", "/king", (req, res) => putKing(req, res, state));
+    router.on("PUT", "/ling", (req, res) => putLing(req, res, state, provisioner));
+    router.on("PUT", "/king", (req, res) => putKing(req, res, state, provisioner));
 
     const server = http.createServer((req, res) => router.lookup(req, res));
     server.listen(argv["port"]);
     await new Promise(resolve => server.once("listening", resolve));
     console.log("msg=\"council ready\" service.type=ratcouncil");
-
-    provisioner.start();
 }
 
 export function builder(yargs) {

@@ -1,6 +1,6 @@
 import rawBody from "raw-body";
 
-export default async function putKing(req, res, state) {
+export default async function putKing(req, res, state, provisioner) {
     const body = await rawBody(req);
     const data = JSON.parse(body);
     if (data["ratholes"] == null) {
@@ -31,6 +31,7 @@ export default async function putKing(req, res, state) {
         if (!service.king_ready) {
             service.king_ready = true;
             state.revision++;
+            await provisioner.provision();
         }
     }
 
@@ -48,6 +49,7 @@ export default async function putKing(req, res, state) {
             shutting_down: false,
         });
         state.revision++;
+        await provisioner.provision();
     }
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
