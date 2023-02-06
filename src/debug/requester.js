@@ -13,14 +13,14 @@ export async function handler(argv) {
     while (!shuttingDown) {
         const [err, res] = await to(got.get(argv["url"], {timeout: {lookup: 100, connect: 100, socket: 100}}));
         if (err) {
-            console.error(`msg="request failed" ${err.message} service.type=requester`);
+            console.error(`message="request failed" ${err.message} service.type=requester`);
             continue;
         }
         if (res.statusCode !== 200) {
-            console.error(`msg="request failed" status_code=${res.statusCode} service.type=requester`);
+            console.error(`message="request failed" http.response.status_code=${res.statusCode} service.type=requester`);
             continue;
         }
-        console.log(`msg="request succeeded" status_code=${res.statusCode} service.type=requester`);
+        console.log(`message="request succeeded" http.response.status_code=${res.statusCode} service.type=requester`);
         await wait.sleep(argv["sleep"]);
     }
 }

@@ -19,7 +19,7 @@ export class KingRatholeManager extends ProcessManager {
 
             const ling = state.lings.find(l => l["ling_id"] === s["ling_id"]);
             if (!ling) {
-                console.error(`msg="Ling not found for service" service.name=${s["name"]} service.type=ratking log.logger=rathole-manager`);
+                console.error(`message="Ling not found for service" service.name=${s["name"]} service.type=ratking log.logger=rathole-manager`);
                 return false;
             }
 
