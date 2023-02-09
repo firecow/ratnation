@@ -1,15 +1,18 @@
 import got from "got";
 import {to} from "await-to-js";
+import {LingContext} from "./ling.mjs";
+import {Ticker} from "../ticker.mjs";
 
-export class LingSyncer {
+export class LingSyncer extends Ticker {
 
-    #timer = -1;
+    private readonly context;
 
-    constructor(context) {
+    constructor (context: LingContext) {
+        super({interval: 1000, tick: async () => this.#sync()});
         this.context = context;
     }
 
-    async #sync() {
+    async #sync () {
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
             method: "PUT",
             json: {
@@ -21,18 +24,7 @@ export class LingSyncer {
             },
         }));
         if (err || response.statusCode !== 200) {
-            console.error("msg=\"Failed to sync with council\" service.type=ratling", err.message, response?.statusCode ?? 0);
+            console.error("msg=\"Failed to sync with council\" service.type=ratling", err?.message ?? response?.statusCode ?? 0);
         }
-    }
-
-    async stop() {
-        clearTimeout(this.#timer);
-        await this.#sync();
-    }
-
-    start() {
-        this.#sync().then(() => {
-            this.#timer = setTimeout(() => this.start(), 1000);
-        });
     }
 }

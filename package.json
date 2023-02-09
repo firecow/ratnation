@@ -11,36 +11,70 @@
     "yargs": "17.6.2"
   },
   "devDependencies": {
-    "eslint": "8.33.0"
+    "@types/node": "18.13.0",
+    "@types/wait-promise": "0.4.0",
+    "@types/yargs": "17.0.22",
+    "@typescript-eslint/eslint-plugin": "5.51.0",
+    "eslint": "8.33.0",
+    "typescript": "4.9.5"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "eslintConfig": {
     "env": {
       "es2022": true,
       "node": true
     },
-    "extends": [
-      "eslint:recommended"
+    "ignorePatterns": [
+      "*.js"
     ],
+    "extends": [
+      "eslint:recommended",
+      "plugin:@typescript-eslint/recommended"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "project": [
+        "./tsconfig.json"
+      ]
+    },
     "rules": {
-      "quotes": "error",
-      "object-curly-spacing": "error",
-      "space-before-function-paren": [
-        "error",
-        "never"
-      ],
-      "semi": "error",
-      "comma-dangle": [
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/quotes": "error",
+      "@typescript-eslint/object-curly-spacing": "error",
+      "@typescript-eslint/space-before-function-paren": "error",
+      "@typescript-eslint/member-delimiter-style": "error",
+      "@typescript-eslint/semi": "error",
+      "@typescript-eslint/comma-dangle": [
         "error",
         "only-multiline"
       ],
+      "@typescript-eslint/no-floating-promises": "error",
+      "@typescript-eslint/require-await": "error",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/indent": [
+        "error",
+        4
+      ],
+      "@typescript-eslint/space-before-blocks": "error",
+      "@typescript-eslint/type-annotation-spacing": "error",
+      "@typescript-eslint/func-call-spacing": "error",
+      "@typescript-eslint/comma-spacing": "error",
+      "@typescript-eslint/space-infix-ops": "error",
+      "@typescript-eslint/no-misused-promises": [
+        "error",
+        {
+          "checksVoidReturn": false
+        }
+      ],
+      "@typescript-eslint/promise-function-async": "error",
+      "keyword-spacing": "error",
       "space-in-parens": "error",
       "no-trailing-spaces": "error",
       "no-multi-spaces": "error",
       "arrow-spacing": "error",
       "key-spacing": "error"
-    },
-    "parserOptions": {
-      "sourceType": "module"
     }
   }
 }

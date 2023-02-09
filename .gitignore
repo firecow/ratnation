@@ -2,6 +2,6 @@
 /.idea/
 /.gitlab-ci-local/
 /node_modules/
-/src/king/rathole-server-*.toml
-/src/ling/rathole-client-*.toml
-/src/ling/traefik-*.toml
+/src/king/*.toml
+/src/ling/*.toml
+**/*.mjs

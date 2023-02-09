@@ -1,25 +1,22 @@
 import yargs from "yargs";
 import assert from "assert";
-import * as kingCmd from "./king/king.js";
-import * as lingCmd from "./ling/ling.js";
-import * as councilCmd from "./council/council.js";
-import * as requesterCmd from "./debug/requester.js";
-
-Array.prototype.random = function() {
-    return this[Math.floor((Math.random() * this.length))];
-};
+import * as kingCmd from "./king/king.mjs";
+import * as lingCmd from "./ling/ling.mjs";
+import * as councilCmd from "./council/council.mjs";
+import * as requesterCmd from "./debug/requester.mjs";
 
 process.on("uncaughtException", (err) => {
     if (err instanceof assert.AssertionError) {
         console.error(err.message);
     } else {
-        console.log(err.message, err.stack.split("\n").slice(0, 2).join("\n"));
+        console.log(err.message, err.stack?.split("\n").slice(0, 2).join("\n"));
     }
     process.exit(1);
 });
 
 const terminalWidth = yargs().terminalWidth();
-const y = yargs(process.argv.slice(2))
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
+yargs(process.argv.slice(2))
     .command(councilCmd)
     .command(kingCmd)
     .command(lingCmd)
@@ -29,5 +26,5 @@ const y = yargs(process.argv.slice(2))
         if (!err) throw new assert.AssertionError({message: msg});
     })
     .wrap(terminalWidth)
-    .strict(true);
-y.parse();
+    .strict(true)
+    .parse();

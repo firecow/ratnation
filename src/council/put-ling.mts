@@ -1,9 +1,13 @@
 import rawBody from "raw-body";
 import crypto from "crypto";
+import {IncomingMessage, ServerResponse} from "http";
+import {State} from "../state-handler.mjs";
+import {Provisioner} from "./provisioner.mjs";
+import assert from "assert";
 
-export default async function putling(req, res, state, provisioner) {
+export default async function putling (req: IncomingMessage, res: ServerResponse, state: State, provisioner: Provisioner) {
     const body = await rawBody(req);
-    const data = JSON.parse(body);
+    const data = JSON.parse(`${body}`);
     if (data["ratholes"] == null) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -27,10 +31,11 @@ export default async function putling(req, res, state, provisioner) {
 
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);
+        assert(service != null, "service is undefined or null");
         if (!service.ling_ready) {
             service.ling_ready = true;
             state.revision++;
-            await provisioner.provision();
+            provisioner.provision();
         }
     }
 
@@ -45,7 +50,7 @@ export default async function putling(req, res, state, provisioner) {
         if (ling.shutting_down !== data["shutting_down"]) {
             ling.shutting_down = data["shutting_down"];
             state.revision++;
-            await provisioner.provision();
+            provisioner.provision();
         }
 
         const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_id"] === data["ling_id"]);
@@ -68,7 +73,7 @@ export default async function putling(req, res, state, provisioner) {
             king_ready: false,
         });
         state.revision++;
-        await provisioner.provision();
+        provisioner.provision();
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         res.end("ok");
     }

@@ -1,8 +1,12 @@
 import rawBody from "raw-body";
+import {IncomingMessage, ServerResponse} from "http";
+import {Provisioner} from "./provisioner.mjs";
+import {State} from "../state-handler.mjs";
+import assert from "assert";
 
-export default async function putKing(req, res, state, provisioner) {
+export default async function putKing (req: IncomingMessage, res: ServerResponse, state: State, provisioner: Provisioner) {
     const body = await rawBody(req);
-    const data = JSON.parse(body);
+    const data = JSON.parse(`${body}`);
     if (data["ratholes"] == null) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -17,7 +21,7 @@ export default async function putKing(req, res, state, provisioner) {
     if (data["host"] == null) {
         res.statusCode = 400;
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("location field cannot be null or undefined\n");
+        return res.end("host field cannot be null or undefined\n");
     }
 
     if (data["ready_service_ids"] == null) {
@@ -28,33 +32,35 @@ export default async function putKing(req, res, state, provisioner) {
 
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);
+        assert(service != null, "service is undefined or null");
         if (!service.king_ready) {
             service.king_ready = true;
             state.revision++;
-            await provisioner.provision();
+            provisioner.provision();
         }
     }
 
     for (const rathole of data["ratholes"]) {
-        const king = state.kings.find(k => k["ports"] === rathole["ports"] && k["host"] === data["host"]);
+        const king = state.kings.find(k => k.ports === rathole.ports && k.host === data.host);
         if (king) {
             if (king.shutting_down !== data["shutting_down"]) {
                 king.shutting_down = data["shutting_down"];
                 state.revision++;
-                await provisioner.provision();
+                provisioner.provision();
             }
-            king.ping = Date.now();
+            king.beat = Date.now();
             continue;
         }
         state.kings.push({
             bind_port: rathole["bind_port"],
             ports: rathole["ports"],
             host: data["host"],
-            ping: Date.now(),
+            location: data["location"],
+            beat: Date.now(),
             shutting_down: false,
         });
         state.revision++;
-        await provisioner.provision();
+        provisioner.provision();
     }
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");

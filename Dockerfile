@@ -14,4 +14,4 @@ COPY --from=node_modules /node_modules /node_modules
 COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
 COPY package.json ./
 COPY src src
-ENTRYPOINT ["node", "src/index.js"]
+ENTRYPOINT ["node", "src/index.mjs"]
