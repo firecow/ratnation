@@ -20,5 +20,3 @@ npx nodemon src/index.mjs ling \
 docker run --rm --name=ratnation-echo-server -p 3000:8080 jmalloc/echo-server &
 
 wait
-
-echo ""

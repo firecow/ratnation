@@ -33,7 +33,7 @@ export async function handler (argv: ArgumentsCamelCase) {
     const server = http.createServer((req, res) => router.lookup(req, res));
     server.listen(argv.port);
     await new Promise(resolve => server.once("listening", resolve));
-    console.log("msg=\"council ready\" service.type=ratcouncil");
+    console.log("message=\"council ready\" service.type=ratcouncil");
 }
 
 export function builder (yargs: Argv) {

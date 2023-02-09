@@ -24,7 +24,7 @@ export class KingSyncer extends Ticker {
             },
         }));
         if (err || response.statusCode !== 200) {
-            console.error("msg=\"Failed to sync with council\" service.type=ratking", err?.message ?? response?.statusCode ?? 0);
+            console.error("message=\"Failed to sync with council\" service.type=ratking", err?.message ?? response?.statusCode ?? 0);
         }
     }
 

@@ -41,7 +41,7 @@ export interface State {
 
 interface StateHandlerOpts {
     councilHost: string;
-    updatedFunc: (state: State) => Promise<void>;
+    updatedFunc: (state: State) => Promise<void> | void;
 }
 
 export class StateHandler extends Ticker {

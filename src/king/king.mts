@@ -44,10 +44,7 @@ export async function handler (args: ArgumentsCamelCase) {
         ...context,
         updatedFunc: async (state) => {
             context.state = state;
-
-            await Promise.all([
-                ratholeManager.stateChanged(),
-            ]);
+            await ratholeManager.stateChanged();
         },
     });
     initKingShutdownHandlers({context, stateHandler, syncer, ratholeManager});
@@ -55,7 +52,7 @@ export async function handler (args: ArgumentsCamelCase) {
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
     syncer.start();
-    console.log("msg=\"king ready\" service.type=ratking");
+    console.log("message=\"king ready\" service.type=ratking");
 }
 
 export function builder (yargs: Argv) {

@@ -44,13 +44,11 @@ export async function handler (args: ArgumentsCamelCase) {
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
         ...context,
-        updatedFunc: async (state) => {
+        updatedFunc: (state) => {
             context.state = state;
 
-            await Promise.all([
-                traefikManager.stateChanged(),
-                ratholeManager.stateChanged(),
-            ]);
+            ratholeManager.stateChanged();
+            traefikManager.stateChanged();
         },
     });
     initLingShutdownHandlers({context, stateHandler, syncer, traefikManager, ratholeManager});
@@ -58,7 +56,7 @@ export async function handler (args: ArgumentsCamelCase) {
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
     syncer.start();
-    console.log("msg=\"ling ready\" service.type=ratling");
+    console.log("message=\"ling ready\" service.type=ratling");
 }
 
 export function builder (yargs: Argv) {
