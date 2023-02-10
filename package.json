@@ -2,6 +2,7 @@
   "name": "ratnation",
   "type": "module",
   "scripts": {
+    "build": "tsc",
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest --coverage"
   },
   "dependencies": {

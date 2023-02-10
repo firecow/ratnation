@@ -3,24 +3,25 @@ name: Quality Assurance
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
 
-  jest:  
+  jest:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [18.x]        
+        node-version: [18.x]
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-    - run: npm ci
-    - run: npm test
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
