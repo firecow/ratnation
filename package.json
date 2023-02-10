@@ -2,7 +2,7 @@
   "name": "ratnation",
   "type": "module",
   "scripts": {
-    "test": "jest --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
   },
   "dependencies": {
     "await-to-js": "3.0.0",
