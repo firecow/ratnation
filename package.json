@@ -1,6 +1,9 @@
 {
   "name": "ratnation",
   "type": "module",
+  "scripts": {
+    "test": "jest --coverage"
+  },
   "dependencies": {
     "await-to-js": "3.0.0",
     "execa": "6.1.0",
