@@ -8,7 +8,7 @@ let stateChangedMock;
 
 beforeEach(() => {
     stateChangedMock = jest.fn<(state: State) => Promise<void> | void>();
-    logger = { info: jest.fn(), error: jest.fn() }
+    logger = {info: jest.fn(), error: jest.fn()};
     stateHandler = new StateHandler({logger, councilHost: "ratcouncil.example.io", stateChanged: stateChangedMock});
 });
 
