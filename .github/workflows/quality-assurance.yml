@@ -18,7 +18,7 @@ jobs:
         id: buildx
         with:
           install: true
-      - run: docker buildx build --platform linux/amd64 . -t firecow/ratnation
+      - run: docker buildx build --platform linux/amd64 . -t firecow/ratnation --cache-to type=gha --cache-from type=gha,mode=max
 
   jest:
     runs-on: ubuntu-latest
