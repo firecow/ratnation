@@ -1,14 +1,17 @@
 
-
 export class Ticker {
 
     private readonly interval;
-    private readonly tick;
+    private readonly _tick;
     private timer?: NodeJS.Timeout;
 
     constructor ({interval, tick}: {interval: number; tick: () => Promise<void>}) {
         this.interval = interval;
-        this.tick = tick;
+        this._tick = tick;
+    }
+
+    async tick () {
+        return this._tick();
     }
 
     start () {
@@ -19,8 +22,7 @@ export class Ticker {
         });
     }
 
-    async stop () {
+    stop () {
         clearTimeout(this.timer);
-        await this.tick();
     }
 }

@@ -13,6 +13,7 @@ export class LingSyncer extends Ticker {
     }
 
     async #sync () {
+        const logger = this.context.logger;
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
             method: "PUT",
             json: {
@@ -24,7 +25,11 @@ export class LingSyncer extends Ticker {
             },
         }));
         if (err || response.statusCode !== 200) {
-            console.error("message=\"Failed to sync with council\" service.type=ratling", err?.message ?? response?.statusCode ?? 0);
+            logger.error("Failed to sync with council", {
+                "error.message": err?.message,
+                "error.stack_trace": err?.stack,
+                "service.type": "ratling"
+            });
         }
     }
 }

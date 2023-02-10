@@ -10,7 +10,7 @@ export class LingRatholeManager extends ProcessManager {
     private readonly context;
 
     constructor (context: LingContext) {
-        super("ling-rathole-manager");
+        super({...context, serviceType: "ratling"});
         this.context = context;
     }
 

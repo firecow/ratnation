@@ -9,7 +9,7 @@ export class LingTraefikManager extends ProcessManager {
     private readonly context;
 
     constructor (context: LingContext) {
-        super("ling-traefik-manager");
+        super({...context, serviceType: "ratling"});
         this.context = context;
     }
 

@@ -1,4 +1,5 @@
 import {execa, ExecaChildProcess, Options} from "execa";
+import {Logger} from "./logger.mjs";
 
 interface ProcessManagerEnsureProcessOpts {
     key: string;
@@ -9,10 +10,12 @@ interface ProcessManagerEnsureProcessOpts {
 
 export class ProcessManager {
 
+    public readonly logger;
     private readonly processMap = new Map<string, ExecaChildProcess>();
     private readonly serviceType;
 
-    constructor (serviceType: string) {
+    constructor ({logger, serviceType}: {logger: Logger; serviceType: string}) {
+        this.logger = logger;
         this.serviceType = serviceType;
     }
 
@@ -39,19 +42,20 @@ export class ProcessManager {
     ensureProcess ({key, file, args, options}: ProcessManagerEnsureProcessOpts) {
         if (this.processMap.has(key)) return;
 
+        const logger = this.logger;
         const p = execa(file, args, options);
-        console.log(`message="Started ${p.spawnargs.join(" ")}" service.type=${this.serviceType}`);
+        logger.info(`Started ${p.spawnargs.join(" ")}`, {"service.type": this.serviceType});
         p.stdout?.pipe(process.stdout);
         p.stderr?.pipe(process.stderr);
 
         void p.once("exit", (code) => {
-            console.info(`message="Exiting ${p.spawnargs.join(" ")}" process.exit_code=${code} service.type=${this.serviceType}`);
+            logger.info(`Exiting ${p.spawnargs.join(" ")}`, {"service.type": this.serviceType, "process.exit_code": code});
             this.processMap.delete(key);
             void p.removeAllListeners();
         });
 
         void p.once("error", (err) => {
-            console.error(`message="Exiting ${p.spawnargs.join(" ")}" error.message=${err.message} service.type=${this.serviceType}`);
+            logger.info(`Error ${p.spawnargs.join(" ")}`, {"service.type": this.serviceType, "error.message": err.message});
             process.exit(1);
         });
 

@@ -7,6 +7,7 @@ import {LingRatholeManager} from "./ling-rathole-manager.mjs";
 import {initLingShutdownHandlers} from "./ling-shutdown.mjs";
 import {LingTraefikManager} from "./ling-traefik-manager.mjs";
 import {ArgumentsCamelCase, Argv} from "yargs";
+import {Logger} from "../logger.mjs";
 
 export interface LingArguments {
     "council-host": string;
@@ -16,6 +17,7 @@ export interface LingArguments {
 }
 
 export class LingContext {
+    logger: Logger;
     config: LingConfig;
     state: State;
     readyServiceIds: string[];
@@ -23,7 +25,8 @@ export class LingContext {
     councilHost: string;
     lingId: string;
 
-    constructor (config: LingConfig, args: LingArguments) {
+    constructor (logger: Logger, config: LingConfig, args: LingArguments) {
+        this.logger = logger;
         this.config = config;
         this.state = {services: [], kings: [], lings: [], revision: 0};
         this.readyServiceIds = [];
@@ -37,14 +40,15 @@ export const command = "ling";
 export const description = "Start ratling";
 
 export async function handler (args: ArgumentsCamelCase) {
+    const logger = new Logger();
     const config = new LingConfig(args as ArgumentsCamelCase<LingArguments>);
-    const context = new LingContext(config, args as ArgumentsCamelCase<LingArguments>);
+    const context = new LingContext(logger, config, args as ArgumentsCamelCase<LingArguments>);
     const syncer = new LingSyncer(context);
     const traefikManager = new LingTraefikManager(context);
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
         ...context,
-        updatedFunc: (state) => {
+        stateChanged: (state) => {
             context.state = state;
 
             ratholeManager.stateChanged();
@@ -56,7 +60,7 @@ export async function handler (args: ArgumentsCamelCase) {
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
     syncer.start();
-    console.log("message=\"ling ready\" service.type=ratling");
+    logger.info("Ready", {"service.type": "ratling"});
 }
 
 export function builder (yargs: Argv) {

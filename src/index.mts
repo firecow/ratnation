@@ -1,3 +1,4 @@
+import "source-map-support/register.js";
 import yargs from "yargs";
 import assert from "assert";
 import * as kingCmd from "./king/king.mjs";
@@ -9,7 +10,7 @@ process.on("uncaughtException", (err) => {
     if (err instanceof assert.AssertionError) {
         console.error(err.message);
     } else {
-        console.log(err.message, err.stack?.split("\n").slice(0, 2).join("\n"));
+        console.info(err.message, err.stack?.split("\n").slice(0, 2).join("\n"));
     }
     process.exit(1);
 });

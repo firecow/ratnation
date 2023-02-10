@@ -25,9 +25,6 @@ export class KingConfig {
             });
         }
 
-        if (this.ratholes.length === 0) {
-            console.error("King must have a least one rathole defined in cli options");
-            process.exit(1);
-        }
+        assert(this.ratholes.length > 0, "One --rathole must be specified");
     }
 }

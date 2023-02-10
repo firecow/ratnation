@@ -1,6 +1,7 @@
 import got from "got";
 import {to} from "await-to-js";
 import {Ticker} from "./ticker.mjs";
+import {Logger} from "./logger.mjs";
 
 export interface StateKing {
     bind_port: number;
@@ -40,20 +41,23 @@ export interface State {
 }
 
 interface StateHandlerOpts {
+    logger: Logger;
     councilHost: string;
-    updatedFunc: (state: State) => Promise<void> | void;
+    stateChanged: (state: State) => Promise<void> | void;
 }
 
 export class StateHandler extends Ticker {
 
-    private readonly updatedFunc;
+    private readonly logger;
+    private readonly stateChanged;
     private readonly councilHost;
     private state: State | null = null;
 
-    constructor ({councilHost, updatedFunc}: StateHandlerOpts) {
+    constructor ({logger, councilHost, stateChanged}: StateHandlerOpts) {
         super({interval: 500, tick: async () => await this.fetchState()});
-        this.updatedFunc = updatedFunc;
+        this.stateChanged = stateChanged;
         this.councilHost = councilHost;
+        this.logger = logger;
     }
 
     hasState () {
@@ -61,15 +65,20 @@ export class StateHandler extends Ticker {
     }
 
     async fetchState () {
+        const logger = this.logger;
         const [err, response] = await to(got.get(`${this.councilHost}/state`));
         if (err || response.statusCode !== 200) {
-            return console.error("Failed to fetch state from council", err?.message ?? response?.statusCode ?? 0);
+            return logger.error("Failed to fetch state from council", {
+                "error.message": err?.message,
+                "error.stack_trace": err?.stack,
+                "http.response.status_code": response?.statusCode
+            });
         }
 
         const newState = JSON.parse(response.body) as State;
         if (this.state === null || this.state.revision !== newState.revision) {
             this.state = newState;
-            await this.updatedFunc(newState);
+            await this.stateChanged(newState);
         }
     }
 }

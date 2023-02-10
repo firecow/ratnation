@@ -5,6 +5,7 @@ import {KingSyncer} from "./king-syncer.mjs";
 import {initKingShutdownHandlers} from "./king-shutdown.mjs";
 import wait from "wait-promise";
 import {ArgumentsCamelCase, Argv} from "yargs";
+import {Logger} from "../logger.mjs";
 
 export interface KingArguments {
     "council-host": string;
@@ -13,6 +14,7 @@ export interface KingArguments {
 }
 
 export class KingContext {
+    logger: Logger;
     config: KingConfig;
     state: State;
     readyServiceIds: string[];
@@ -21,7 +23,8 @@ export class KingContext {
     host: string;
     location: string;
 
-    constructor (config: KingConfig, args: KingArguments) {
+    constructor (logger: Logger, config: KingConfig, args: KingArguments) {
+        this.logger = logger;
         this.config = config;
         this.state = {services: [], kings: [], lings: [], revision: 0};
         this.readyServiceIds = [];
@@ -36,13 +39,14 @@ export const command = "king";
 export const description = "Start ratking";
 
 export async function handler (args: ArgumentsCamelCase) {
+    const logger = new Logger();
     const config = new KingConfig(args as ArgumentsCamelCase<KingArguments>);
-    const context = new KingContext(config, args as ArgumentsCamelCase<KingArguments>);
+    const context = new KingContext(logger, config, args as ArgumentsCamelCase<KingArguments>);
     const ratholeManager = new KingRatholeManager(context);
     const syncer = new KingSyncer(context);
     const stateHandler = new StateHandler({
         ...context,
-        updatedFunc: async (state) => {
+        stateChanged: async (state) => {
             context.state = state;
             await ratholeManager.stateChanged();
         },
@@ -52,7 +56,7 @@ export async function handler (args: ArgumentsCamelCase) {
     stateHandler.start();
     await wait.until(() => stateHandler.hasState());
     syncer.start();
-    console.log("message=\"king ready\" service.type=ratking");
+    logger.info("Ready", {"service.type": "ratking"});
 }
 
 export function builder (yargs: Argv) {

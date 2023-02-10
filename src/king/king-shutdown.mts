@@ -12,11 +12,13 @@ interface KingShutdownHandlersOpts {
 }
 
 export function initKingShutdownHandlers ({context, stateHandler, syncer, ratholeManager}: KingShutdownHandlersOpts) {
+    const logger = context.logger;
     const listener = async (signal: NodeJS.Signals) => {
-        console.log("message=\"king shutdown sequence initiated\" service.type=ratking");
+        logger.info("Shutdown sequence initiated", {"service.type": "ratking"});
         context.shuttingDown = true;
-        void stateHandler.stop();
-        await syncer.stop();
+        stateHandler.stop();
+        syncer.stop();
+        await syncer.tick();
         await wait.sleep(1000);
         ratholeManager.killProcesses(signal);
     };

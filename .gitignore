@@ -1,6 +1,7 @@
 /.cego/
 /.idea/
 /.gitlab-ci-local/
+/coverage/
 /node_modules/
 /src/king/*.toml
 /src/ling/*.toml

@@ -5,11 +5,13 @@ import putLing from "./put-ling.mjs";
 import getState from "./get-state.mjs";
 import putKing from "./put-king.mjs";
 import {ArgumentsCamelCase, Argv} from "yargs";
+import {Logger} from "../logger.mjs";
 
 export const command = "council";
 export const description = "Start council";
 
 export async function handler (argv: ArgumentsCamelCase) {
+    const logger = new Logger();
     const state = {
         revision: 0,
         services: [],
@@ -17,7 +19,7 @@ export async function handler (argv: ArgumentsCamelCase) {
         lings: [],
     };
 
-    const provisioner = new Provisioner({state});
+    const provisioner = new Provisioner({logger, state});
 
     const router = findmyway({
         defaultRoute: (req, res) => {
@@ -26,14 +28,14 @@ export async function handler (argv: ArgumentsCamelCase) {
         },
     });
 
-    router.on("GET", "/state", async (req, res) => getState(req, res, state));
-    router.on("PUT", "/ling", async (req, res) => putLing(req, res, state, provisioner));
-    router.on("PUT", "/king", async (req, res) => putKing(req, res, state, provisioner));
+    router.on("GET", "/state", async (req, res) => getState(logger, req, res, state));
+    router.on("PUT", "/ling", async (req, res) => putLing(logger, req, res, state, provisioner));
+    router.on("PUT", "/king", async (req, res) => putKing(logger, req, res, state, provisioner));
 
     const server = http.createServer((req, res) => router.lookup(req, res));
     server.listen(argv.port);
     await new Promise(resolve => server.once("listening", resolve));
-    console.log("message=\"council ready\" service.type=ratcouncil");
+    logger.info("Ready", {"service.type": "ratcouncil"});
 }
 
 export function builder (yargs: Argv) {

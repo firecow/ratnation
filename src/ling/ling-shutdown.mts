@@ -14,11 +14,13 @@ interface LingShutdownHandlersOpts {
 }
 
 export function initLingShutdownHandlers ({context, stateHandler, syncer, traefikManager, ratholeManager}: LingShutdownHandlersOpts) {
+    const logger = context.logger;
     const listener = async (signal: NodeJS.Signals) => {
-        console.log("message=\"ling shutdown sequence initiated\" service.type=ratling");
+        logger.info("Shutdown sequence initiated", {"service.type": "ratling"});
         context.shuttingDown = true;
-        void stateHandler.stop();
-        await syncer.stop();
+        stateHandler.stop();
+        syncer.stop();
+        await syncer.tick();
         await wait.sleep(1000);
         ratholeManager.killProcesses(signal);
         traefikManager.killProcesses(signal);

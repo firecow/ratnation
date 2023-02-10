@@ -10,11 +10,12 @@ export class KingRatholeManager extends ProcessManager {
     private readonly context;
 
     constructor (context: KingContext) {
-        super("king-rathole-manager");
+        super({...context, serviceType: "ratking"});
         this.context = context;
     }
 
     #getServices ({bindPort, host}: {bindPort: number; host: string}) {
+        const logger = this.logger;
         const state = this.context.state;
         return state.services.filter(s => {
             if (s.bind_port !== bindPort || s.host !== host) {
@@ -23,7 +24,7 @@ export class KingRatholeManager extends ProcessManager {
 
             const ling = state.lings.find(l => l.ling_id === s.ling_id);
             if (!ling) {
-                console.error(`message="Ling not found for service" service.name=${s.name} service.type=ratking log.logger=rathole-manager`);
+                logger.error(`Ling not found for ${s.name}`, {"service.type": "ratking"});
                 return false;
             }
 
