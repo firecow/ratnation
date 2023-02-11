@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 
-test("it find available port on king", async () => {
+test("it find available port on king", () => {
     const state: State = {
         services: [
             {
@@ -30,7 +30,7 @@ test("it find available port on king", async () => {
         kings: [{host: "kinghost.com", ports: "5000-5000", location: "myhouse", bind_port: 2343, beat: 0, shutting_down: false}],
         lings: [{ling_id: "some_ling_id", beat: 0, shutting_down: false}],
         revision: 0,
-    }
+    };
     provisioner = new CouncilProvisioner({state, logger});
 
     const kingPorts = provisioner.availableKingPorts();
