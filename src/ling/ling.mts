@@ -1,13 +1,13 @@
 import crypto from "crypto";
-import wait from "wait-promise";
-import {LingConfig} from "./ling-config.mjs";
-import {LingSyncer} from "./ling-syncer.mjs";
-import {State, StateHandler} from "../state-handler.mjs";
-import {LingRatholeManager} from "./ling-rathole-manager.mjs";
-import {initLingShutdownHandlers} from "./ling-shutdown.mjs";
-import {LingTraefikManager} from "./ling-traefik-manager.mjs";
+import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.mjs";
+import {State, StateHandler} from "../state-handler.mjs";
+import {LingConfig} from "./ling-config.mjs";
+import {LingRatholeManager} from "./ling-rathole-manager.mjs";
+import {initLingShutdownHandlers} from "./ling-shutdown.mjs";
+import {LingSyncer} from "./ling-syncer.mjs";
+import {LingTraefikManager} from "./ling-traefik-manager.mjs";
 
 export interface LingArguments {
     "council-host": string;
@@ -48,17 +48,19 @@ export async function handler (args: ArgumentsCamelCase) {
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
         ...context,
-        stateChanged: (state) => {
+        stateChanged: async (state) => {
             context.state = state;
 
-            ratholeManager.stateChanged();
-            traefikManager.stateChanged();
+            await Promise.all([
+                ratholeManager.stateChanged(),
+                traefikManager.stateChanged(),
+            ]);
         },
     });
     initLingShutdownHandlers({context, stateHandler, syncer, traefikManager, ratholeManager});
 
     stateHandler.start();
-    await wait.until(() => stateHandler.hasState());
+    await waitFor(() => stateHandler.hasState());
     syncer.start();
     logger.info("Ready", {"service.type": "ratling"});
 }

@@ -1,7 +1,7 @@
-import got from "got";
 import {to} from "await-to-js";
-import {KingContext} from "./king.mjs";
+import got from "got";
 import {Ticker} from "../ticker.mjs";
+import {KingContext} from "./king.mjs";
 
 export class KingSyncer extends Ticker {
 

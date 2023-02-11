@@ -1,9 +1,9 @@
+import delay from "delay";
 import fs from "fs";
 import {ProcessManager} from "../process-manager.mjs";
+import {StateService} from "../state-handler.mjs";
 import {KingRatholeConfig} from "./king-config.mjs";
 import {KingContext} from "./king.mjs";
-import {StateService} from "../state-handler.mjs";
-import wait from "wait-promise";
 
 export class KingRatholeManager extends ProcessManager {
 
@@ -60,9 +60,9 @@ export class KingRatholeManager extends ProcessManager {
         const services = this.#getServices({bindPort, host});
         if (services.length === 0) {
             // rathole clients may not be closed yet, wait a little.
-            // TODO: We can do better that arbitraty waits
-            await wait.sleep(2000);
-            this.killProcess(`${bindPort}`, "SIGTERM");
+            // TODO: We can do better that arbitrary sleep's
+            await delay(2000);
+            await this.killProcess(`${bindPort}`, "SIGTERM");
             return [];
         }
 

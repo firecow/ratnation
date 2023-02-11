@@ -28,8 +28,8 @@ See [stack.yml](./examples/docker-swarm/stack.yml) for deployment configuration
 
 ## Development
 
-Starts applications with code reloading capabilities via nodemon
+Starts applications with code reloading capabilities
 
 ```
-./start_dev.sh
+node src/start-dev-mjs
 ```

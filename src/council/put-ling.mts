@@ -1,10 +1,10 @@
-import rawBody from "raw-body";
+import assert from "assert";
 import crypto from "crypto";
 import {IncomingMessage, ServerResponse} from "http";
+import rawBody from "raw-body";
+import {Logger} from "../logger.mjs";
 import {State} from "../state-handler.mjs";
 import {Provisioner} from "./provisioner.mjs";
-import assert from "assert";
-import {Logger} from "../logger.mjs";
 
 export default async function putling (logger: Logger, req: IncomingMessage, res: ServerResponse, state: State, provisioner: Provisioner) {
     const body = await rawBody(req);

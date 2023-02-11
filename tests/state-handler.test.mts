@@ -1,4 +1,4 @@
-import {beforeEach, test, jest, expect} from "@jest/globals";
+import {beforeEach, expect, jest, test} from "@jest/globals";
 import {State, StateHandler} from "../src/state-handler.mjs";
 import {Logger} from "../src/logger.mjs";
 

@@ -1,9 +1,9 @@
-import rawBody from "raw-body";
-import {IncomingMessage, ServerResponse} from "http";
-import {Provisioner} from "./provisioner.mjs";
-import {State} from "../state-handler.mjs";
 import assert from "assert";
+import {IncomingMessage, ServerResponse} from "http";
+import rawBody from "raw-body";
 import {Logger} from "../logger.mjs";
+import {State} from "../state-handler.mjs";
+import {Provisioner} from "./provisioner.mjs";
 
 export default async function putKing (logger: Logger, req: IncomingMessage, res: ServerResponse, state: State, provisioner: Provisioner) {
     const body = await rawBody(req);

@@ -1,7 +1,7 @@
-import got from "got";
 import {to} from "await-to-js";
-import {LingContext} from "./ling.mjs";
+import got from "got";
 import {Ticker} from "../ticker.mjs";
+import {LingContext} from "./ling.mjs";
 
 export class LingSyncer extends Ticker {
 

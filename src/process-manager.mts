@@ -1,4 +1,5 @@
 import {execa, ExecaChildProcess, Options} from "execa";
+import waitFor from "p-wait-for";
 import {Logger} from "./logger.mjs";
 
 interface ProcessManagerEnsureProcessOpts {
@@ -23,20 +24,22 @@ export class ProcessManager {
         return this.processMap.keys();
     }
 
-    killProcesses (signal: NodeJS.Signals) {
-        this.processMap.forEach(p => {
-            p.stdout?.unpipe(process.stdout);
-            p.stderr?.unpipe(process.stderr);
-            p.kill(signal);
-        });
+    async killProcesses (signal: NodeJS.Signals) {
+        const proms = [];
+        for (const key of this.processMap.keys()) {
+            proms.push(this.killProcess(key, signal));
+        }
+        return Promise.all(proms);
     }
 
-    killProcess (key: string, signal: NodeJS.Signals) {
+    async killProcess (key: string, signal: NodeJS.Signals): Promise<void> {
         const p = this.processMap.get(key);
-        if (!p) return false;
+        if (!p) return;
         p.stdout?.unpipe(process.stdout);
         p.stderr?.unpipe(process.stderr);
         p.kill(signal);
+
+        await waitFor(() => p.exitCode != null);
     }
 
     ensureProcess ({key, file, args, options}: ProcessManagerEnsureProcessOpts) {

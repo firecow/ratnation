@@ -1,8 +1,8 @@
-import got from "got";
 import {to} from "await-to-js";
+import got from "got";
 import {ArgumentsCamelCase, Argv} from "yargs";
-import {Ticker} from "../ticker.mjs";
 import {Logger} from "../logger.mjs";
+import {Ticker} from "../ticker.mjs";
 
 export interface RequestArguments {
     "url": string;

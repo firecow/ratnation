@@ -1,9 +1,9 @@
+import assert from "assert";
 import fs from "fs";
 import {ProcessManager} from "../process-manager.mjs";
-import {LingContext} from "./ling.mjs";
-import {LingConfig} from "./ling-config.mjs";
 import {StateService} from "../state-handler.mjs";
-import assert from "assert";
+import {LingConfig} from "./ling-config.mjs";
+import {LingContext} from "./ling.mjs";
 
 export class LingRatholeManager extends ProcessManager {
 
@@ -49,7 +49,7 @@ export class LingRatholeManager extends ProcessManager {
         return ratholeFile;
     }
 
-    stateChanged () {
+    async stateChanged () {
         const config = this.context.config;
         const lingId = this.context.lingId;
         const services = this.#getServices({config, lingId});
@@ -68,11 +68,14 @@ export class LingRatholeManager extends ProcessManager {
         }
 
         // Kill processes if king bind_addr doesn't have any ports active.
+        const proms = [];
         for (const kingBindAddr of this.processKeys()) {
             if (kingBindAddrs.includes(kingBindAddr)) continue;
-            this.killProcess(kingBindAddr, "SIGTERM");
+            proms.push(this.killProcess(kingBindAddr, "SIGTERM"));
         }
 
         this.context.readyServiceIds = services.map(s => s["service_id"]);
+
+        await Promise.all(proms);
     }
 }

@@ -1,8 +1,8 @@
 import fs from "fs";
 import {ProcessManager} from "../process-manager.mjs";
-import {LingContext} from "./ling.mjs";
 import {StateService} from "../state-handler.mjs";
 import {LingProxyConfig} from "./ling-config.mjs";
+import {LingContext} from "./ling.mjs";
 
 export class LingTraefikManager extends ProcessManager {
 
@@ -26,11 +26,7 @@ export class LingTraefikManager extends ProcessManager {
             }
 
             const king = state.kings.find(k => k.host === s.host && k.bind_port === s.bind_port);
-            if (!king || king.shutting_down || !s.king_ready) {
-                return false;
-            }
-
-            return true;
+            return (king && !king.shutting_down && s.king_ready);
         });
     }
 
@@ -55,7 +51,7 @@ export class LingTraefikManager extends ProcessManager {
         return traefikFile;
     }
 
-    #each (proxyCnf: LingProxyConfig) {
+    async #each (proxyCnf: LingProxyConfig) {
         const bindPort = proxyCnf["bind_port"];
         const name = proxyCnf["name"];
         const services = this.#getServices({name});
@@ -72,9 +68,11 @@ export class LingTraefikManager extends ProcessManager {
         });
     }
 
-    stateChanged () {
+    async stateChanged () {
+        const proms = [];
         for (const proxyCnf of this.context.config.proxyMap.values()) {
-            this.#each(proxyCnf);
+            proms.push(this.#each(proxyCnf));
         }
+        await Promise.all(proms);
     }
 }

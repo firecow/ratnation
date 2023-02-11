@@ -7,19 +7,19 @@
   },
   "dependencies": {
     "await-to-js": "3.0.0",
+    "delay": "5.0.0",
     "execa": "6.1.0",
     "find-my-way": "7.4.0",
     "got": "12.5.3",
+    "p-wait-for": "5.0.0",
     "raw-body": "2.5.1",
     "source-map-support": "0.5.21",
-    "wait-promise": "0.4.1",
     "yargs": "17.6.2"
   },
   "devDependencies": {
     "@jest/globals": "29.4.2",
     "@types/node": "18.13.0",
-    "@types/wait-promise": "0.4.0",
-    "@types/yargs": "17.0.22",
+    "@typescript-eslint/parser": "5.51.0",
     "@typescript-eslint/eslint-plugin": "5.51.0",
     "eslint": "8.34.0",
     "jest": "29.4.2",

@@ -1,9 +1,9 @@
-import wait from "wait-promise";
-import {LingTraefikManager} from "./ling-traefik-manager.mjs";
-import {LingSyncer} from "./ling-syncer.mjs";
+import delay from "delay";
 import {StateHandler} from "../state-handler.mjs";
-import {LingContext} from "./ling.mjs";
 import {LingRatholeManager} from "./ling-rathole-manager.mjs";
+import {LingSyncer} from "./ling-syncer.mjs";
+import {LingTraefikManager} from "./ling-traefik-manager.mjs";
+import {LingContext} from "./ling.mjs";
 
 interface LingShutdownHandlersOpts {
     context: LingContext;
@@ -21,9 +21,13 @@ export function initLingShutdownHandlers ({context, stateHandler, syncer, traefi
         stateHandler.stop();
         syncer.stop();
         await syncer.tick();
-        await wait.sleep(1000);
-        ratholeManager.killProcesses(signal);
-        traefikManager.killProcesses(signal);
+        // Wait for kings to have noticed the ling shutdown state change.
+        // TODO: We can do better that arbitrary sleep's
+        await delay(1000);
+        await Promise.all([
+            ratholeManager.killProcesses(signal),
+            traefikManager.killProcesses(signal),
+        ]);
     };
     process.on("SIGINT", listener);
     process.on("SIGTERM", listener);

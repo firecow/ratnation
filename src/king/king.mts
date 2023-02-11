@@ -1,11 +1,11 @@
-import {KingConfig} from "./king-config.mjs";
-import {State, StateHandler} from "../state-handler.mjs";
-import {KingRatholeManager} from "./king-rathole-manager.mjs";
-import {KingSyncer} from "./king-syncer.mjs";
-import {initKingShutdownHandlers} from "./king-shutdown.mjs";
-import wait from "wait-promise";
+import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.mjs";
+import {State, StateHandler} from "../state-handler.mjs";
+import {KingConfig} from "./king-config.mjs";
+import {KingRatholeManager} from "./king-rathole-manager.mjs";
+import {initKingShutdownHandlers} from "./king-shutdown.mjs";
+import {KingSyncer} from "./king-syncer.mjs";
 
 export interface KingArguments {
     "council-host": string;
@@ -54,7 +54,7 @@ export async function handler (args: ArgumentsCamelCase) {
     initKingShutdownHandlers({context, stateHandler, syncer, ratholeManager});
 
     stateHandler.start();
-    await wait.until(() => stateHandler.hasState());
+    await waitFor(() => stateHandler.hasState());
     syncer.start();
     logger.info("Ready", {"service.type": "ratking"});
 }

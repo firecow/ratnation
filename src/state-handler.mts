@@ -1,7 +1,7 @@
-import got from "got";
 import {to} from "await-to-js";
-import {Ticker} from "./ticker.mjs";
+import got from "got";
 import {Logger} from "./logger.mjs";
+import {Ticker} from "./ticker.mjs";
 
 export interface StateKing {
     bind_port: number;

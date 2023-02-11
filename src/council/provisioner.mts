@@ -1,5 +1,5 @@
-import {State, StateKing, StateService} from "../state-handler.mjs";
 import {Logger} from "../logger.mjs";
+import {State, StateKing, StateService} from "../state-handler.mjs";
 
 export class Provisioner {
 

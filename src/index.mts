@@ -1,10 +1,10 @@
+import assert from "assert";
 import "source-map-support/register.js";
 import yargs from "yargs";
-import assert from "assert";
-import * as kingCmd from "./king/king.mjs";
-import * as lingCmd from "./ling/ling.mjs";
 import * as councilCmd from "./council/council.mjs";
 import * as requesterCmd from "./debug/requester.mjs";
+import * as kingCmd from "./king/king.mjs";
+import * as lingCmd from "./ling/ling.mjs";
 
 process.on("uncaughtException", (err) => {
     if (err instanceof assert.AssertionError) {

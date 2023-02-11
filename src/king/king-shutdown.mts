@@ -1,8 +1,8 @@
-import wait from "wait-promise";
+import delay from "delay";
 import {StateHandler} from "../state-handler.mjs";
-import {KingContext} from "./king.mjs";
-import {KingSyncer} from "./king-syncer.mjs";
 import {KingRatholeManager} from "./king-rathole-manager.mjs";
+import {KingSyncer} from "./king-syncer.mjs";
+import {KingContext} from "./king.mjs";
 
 interface KingShutdownHandlersOpts {
     context: KingContext;
@@ -19,8 +19,10 @@ export function initKingShutdownHandlers ({context, stateHandler, syncer, rathol
         stateHandler.stop();
         syncer.stop();
         await syncer.tick();
-        await wait.sleep(1000);
-        ratholeManager.killProcesses(signal);
+        // Wait for lings to have noticed the king shutdown state change.
+        // TODO: We can do better that arbitrary sleep's
+        await delay(1000);
+        await ratholeManager.killProcesses(signal);
     };
     process.on("SIGINT", listener);
     process.on("SIGTERM", listener);

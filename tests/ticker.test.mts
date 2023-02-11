@@ -1,4 +1,4 @@
-import {test, expect, jest, afterEach, beforeEach} from "@jest/globals";
+import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
 import {Ticker} from "../src/ticker.mjs";
 import waitForExpect from "wait-for-expect";
 
