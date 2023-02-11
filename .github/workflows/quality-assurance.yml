@@ -20,6 +20,20 @@ jobs:
           install: true
       - run: docker buildx build --platform linux/amd64 . -t firecow/ratnation --cache-to type=gha --cache-from type=gha,mode=max
 
+  eslint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      - run: npm ci --no-audit
+      - run: npx eslint .
+
   jest:
     runs-on: ubuntu-latest
     strategy:
