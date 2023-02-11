@@ -16,8 +16,7 @@ process.on("uncaughtException", (err) => {
 });
 
 const terminalWidth = yargs().terminalWidth();
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-yargs(process.argv.slice(2))
+await yargs(process.argv.slice(2))
     .command(councilCmd)
     .command(kingCmd)
     .command(lingCmd)
