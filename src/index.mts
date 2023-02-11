@@ -8,9 +8,9 @@ import * as lingCmd from "./ling/ling.mjs";
 
 process.on("uncaughtException", (err) => {
     if (err instanceof assert.AssertionError) {
-        console.error(err.message);
+        console.error(`\u001b[31m${err.message}\u001b[0m`);
     } else {
-        console.info(err.message, err.stack?.split("\n").slice(0, 2).join("\n"));
+        console.error(err.message, err.stack?.split("\n").slice(0, 2).join("\n"));
     }
     process.exit(1);
 });
