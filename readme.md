@@ -35,7 +35,6 @@ See [stack.yml](./examples/docker-swarm/stack.yml) for deployment configuration
 nodejs `>=18.x.x`
 
 ### Code reloading script
-Starts applications with code reloading capabilities
 
 ```
 node src/start-dev-mjs
