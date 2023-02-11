@@ -7,13 +7,13 @@ Service mesh based on [rathole](https://github.com/rapiz1/rathole) and [traefik]
 Consists of three different applications to operate
 
 ### ratcouncil
-A service discovery application, used by ratkings and ratlings, must be exposed to the internet.
+A service discovery application, used by ratkings and ratlings, must be exposed to all ratlings and ratkings
 
 ### ratking
-Controlplane application starting rathole servers, must be exposed to the internet
+Controlplane application starting rathole servers, must be exposed to all ratlings
 
 ### ratling
-Dataplane application managing rathole clients and traefik proxies based
+Dataplane application managing rathole clients and traefik proxies, can be completely isolated.
 
 
 ## Quickstart
