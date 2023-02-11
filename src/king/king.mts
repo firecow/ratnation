@@ -2,6 +2,7 @@ import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.mjs";
 import {State, StateHandler} from "../state-handler.mjs";
+import {portsReachable} from "../utils.mjs";
 import {KingConfig} from "./king-config.mjs";
 import {KingRatholeManager} from "./king-rathole-manager.mjs";
 import {initKingShutdownHandlers} from "./king-shutdown.mjs";
@@ -41,6 +42,7 @@ export const description = "Start ratking";
 export async function handler (args: ArgumentsCamelCase) {
     const logger = new Logger();
     const config = new KingConfig(args as ArgumentsCamelCase<KingArguments>);
+    await portsReachable(config.ratholes);
     const context = new KingContext(logger, config, args as ArgumentsCamelCase<KingArguments>);
     const ratholeManager = new KingRatholeManager(context);
     const syncer = new KingSyncer(context);

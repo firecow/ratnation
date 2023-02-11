@@ -1,11 +1,10 @@
-import {AssertionError} from "assert";
 import crypto from "crypto";
-import isPortReachable from "is-port-reachable";
 import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.mjs";
 import {State, StateHandler} from "../state-handler.mjs";
-import {LingConfig, LingProxyConfig} from "./ling-config.mjs";
+import {portsReachable} from "../utils.mjs";
+import {LingConfig} from "./ling-config.mjs";
 import {LingRatholeManager} from "./ling-rathole-manager.mjs";
 import {initLingShutdownHandlers} from "./ling-shutdown.mjs";
 import {LingSyncer} from "./ling-syncer.mjs";
@@ -35,14 +34,6 @@ export class LingContext {
         this.shuttingDown = false;
         this.councilHost = args["council-host"];
         this.lingId = args["ling-id"] ?? crypto.randomUUID();
-    }
-}
-
-async function portsReachable (proxyConfigs: Iterable<LingProxyConfig>) {
-    for (const proxyCnf of proxyConfigs) {
-        if (await isPortReachable(proxyCnf.bind_port, {host: "0.0.0.0"})) {
-            throw new AssertionError({message: `${proxyCnf.bind_port} is already in use`});
-        }
     }
 }
 
