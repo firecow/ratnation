@@ -3,7 +3,7 @@ import http from "http";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.mjs";
 import getState from "./get-state.mjs";
-import {Provisioner} from "./provisioner.mjs";
+import {CouncilProvisioner} from "./council-provisioner.mjs";
 import putKing from "./put-king.mjs";
 import putLing from "./put-ling.mjs";
 
@@ -19,7 +19,7 @@ export async function handler (argv: ArgumentsCamelCase) {
         lings: [],
     };
 
-    const provisioner = new Provisioner({logger, state});
+    const provisioner = new CouncilProvisioner({logger, state});
 
     const router = findmyway({
         defaultRoute: (req, res) => {

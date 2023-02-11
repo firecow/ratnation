@@ -4,9 +4,9 @@ import {IncomingMessage, ServerResponse} from "http";
 import rawBody from "raw-body";
 import {Logger} from "../logger.mjs";
 import {State} from "../state-handler.mjs";
-import {Provisioner} from "./provisioner.mjs";
+import {CouncilProvisioner} from "./council-provisioner.mjs";
 
-export default async function putling (logger: Logger, req: IncomingMessage, res: ServerResponse, state: State, provisioner: Provisioner) {
+export default async function putling (logger: Logger, req: IncomingMessage, res: ServerResponse, state: State, provisioner: CouncilProvisioner) {
     const body = await rawBody(req);
     const data = JSON.parse(`${body}`);
     if (data["ratholes"] == null) {
