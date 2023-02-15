@@ -9,7 +9,7 @@
   "dependencies": {
     "await-to-js": "3.0.0",
     "delay": "5.0.0",
-    "execa": "6.1.0",
+    "execa": "7.0.0",
     "find-my-way": "7.4.0",
     "got": "12.5.3",
     "is-port-reachable": "4.0.0",
