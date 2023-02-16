@@ -6,3 +6,4 @@
 /src/king/*.toml
 /src/ling/*.toml
 **/*.mjs
+**/*.js
