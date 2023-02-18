@@ -4,6 +4,7 @@ import findmyway from "find-my-way";
 import http, {IncomingMessage, ServerResponse} from "http";
 import {Logger} from "../logger.mjs";
 import {State} from "../state-handler.mjs";
+import {CouncilStateCleaner} from "./coucil-state-cleaner.mjs";
 import {CouncilProvisioner} from "./council-provisioner.mjs";
 import getState from "./get-state.mjs";
 import putKing from "./put-king.mjs";
@@ -29,6 +30,7 @@ export default function createServer () {
     };
 
     const provisioner = new CouncilProvisioner({logger, state});
+    const cleaner = new CouncilStateCleaner({logger, state});
 
     function initRoute (routeFunc: RouteFunc) {
         return async (req: IncomingMessage, res: ServerResponse) => {
@@ -57,5 +59,5 @@ export default function createServer () {
     router.on("PUT", "/ling", initRoute(putLing));
     router.on("PUT", "/king", initRoute(putKing));
 
-    return http.createServer((req, res) => router.lookup(req, res));
+    return {server: http.createServer((req, res) => router.lookup(req, res)), cleaner};
 }
