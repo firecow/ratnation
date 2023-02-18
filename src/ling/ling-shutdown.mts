@@ -16,11 +16,12 @@ interface LingShutdownHandlersOpts {
 export function initLingShutdownHandlers ({context, stateHandler, syncer, traefikManager, ratholeManager}: LingShutdownHandlersOpts) {
     const logger = context.logger;
     const listener = async (signal: NodeJS.Signals) => {
+        if (context.shuttingDown) return;
         logger.info("Shutdown sequence initiated", {"service.type": "ratling"});
         context.shuttingDown = true;
         stateHandler.stop();
         syncer.stop();
-        await syncer.tick();
+        await syncer.tick().catch(() => logger.error("shutdown sync failed", {"service.type": "ratling"}));
         // Wait for kings to have noticed the ling shutdown state change.
         // TODO: We can do better that arbitrary sleep's
         await delay(1000);
