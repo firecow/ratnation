@@ -15,13 +15,11 @@ export class CouncilStateCleaner extends Ticker {
         for (const [i, k] of this.state.kings.entries()) {
             if (k.beat > Date.now() - 10000) continue;
             this.state.kings.splice(i, 1);
-            console.log("old king", i);
         }
 
         for (const [i, k] of this.state.lings.entries()) {
             if (k.beat > Date.now() - 10000) continue;
             this.state.lings.splice(i, 1);
-            console.log("old ling", i);
         }
 
         for (const [i, s] of this.state.services.entries()) {
