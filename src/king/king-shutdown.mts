@@ -23,7 +23,9 @@ export function initKingShutdownHandlers ({context, stateHandler, syncer, rathol
         // Wait for lings to have noticed the king shutdown state change.
         // TODO: We can do better that arbitrary sleep's
         await delay(1000);
-        await ratholeManager.killProcesses(signal);
+        await Promise.allSettled([
+            ratholeManager.killProcesses(signal)
+        ]);
     };
     process.on("SIGINT", listener);
     process.on("SIGTERM", listener);
