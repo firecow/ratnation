@@ -59,9 +59,6 @@ export class KingRatholeManager extends ProcessManager {
         const host = this.context.host;
         const services = this.#getServices({bindPort, host});
         if (services.length === 0) {
-            // rathole clients may not be closed yet, wait a little.
-            // TODO: We can do better that arbitrary sleep's
-            await delay(2000);
             await this.killProcess(`${bindPort}`, "SIGTERM");
             return [];
         }
@@ -79,6 +76,11 @@ export class KingRatholeManager extends ProcessManager {
 
     async stateChanged () {
         let readyServices: string[] = [];
+
+        // rathole clients may not be closed yet, wait a little.
+        // TODO: We can do better that arbitrary sleep's
+        await delay(1500);
+
         for (const ratholeCnf of this.context.config.ratholes) {
             readyServices = readyServices.concat(await this.#each(ratholeCnf));
         }

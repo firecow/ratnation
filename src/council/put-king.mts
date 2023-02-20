@@ -1,35 +1,15 @@
 import assert from "assert";
-import {IncomingMessage, ServerResponse} from "http";
 import rawBody from "raw-body";
-import {Logger} from "../logger.mjs";
-import {State} from "../state-handler.mjs";
-import {CouncilProvisioner} from "./council-provisioner.mjs";
+import {RouteCtx} from "./council-server.mjs";
 
-export default async function putKing (logger: Logger, req: IncomingMessage, res: ServerResponse, state: State, provisioner: CouncilProvisioner) {
+export default async function ({req, res, state, provisioner}: RouteCtx) {
     const body = await rawBody(req);
+    assert(body.length > 0, "no json data received");
     const data = JSON.parse(`${body}`);
-    if (data["ratholes"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("ratholes field cannot be null or undefined\n");
-    }
-    if (data["location"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("location field cannot be null or undefined\n");
-    }
-
-    if (data["host"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("host field cannot be null or undefined\n");
-    }
-
-    if (data["ready_service_ids"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("readyServices field cannot be null or undefined\n");
-    }
+    assert(data["ratholes"] != null, "ratholes field cannot be null or undefined");
+    assert(data["location"] != null, "location field cannot be null or undefined");
+    assert(data["host"] != null, "host field cannot be null or undefined");
+    assert(data["ready_service_ids"] != null, "ready_service_ids field cannot be null or undefined");
 
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);

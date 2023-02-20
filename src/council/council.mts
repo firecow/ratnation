@@ -1,40 +1,18 @@
-import findmyway from "find-my-way";
-import http from "http";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.mjs";
-import {CouncilProvisioner} from "./council-provisioner.mjs";
-import getState from "./get-state.mjs";
-import putKing from "./put-king.mjs";
-import putLing from "./put-ling.mjs";
+import createServer from "./council-server.mjs";
+import {initCouncilShutdownHandlers} from "./council-shutdown.mjs";
 
 export const command = "council";
 export const description = "Start council";
 
-export async function handler (argv: ArgumentsCamelCase) {
+export async function handler (args: ArgumentsCamelCase) {
     const logger = new Logger();
-    const state = {
-        revision: 0,
-        services: [],
-        kings: [],
-        lings: [],
-    };
-
-    const provisioner = new CouncilProvisioner({logger, state});
-
-    const router = findmyway({
-        defaultRoute: (req, res) => {
-            res.statusCode = 404;
-            res.end();
-        },
-    });
-
-    router.on("GET", "/state", async (req, res) => getState(logger, req, res, state));
-    router.on("PUT", "/ling", async (req, res) => putLing(logger, req, res, state, provisioner));
-    router.on("PUT", "/king", async (req, res) => putKing(logger, req, res, state, provisioner));
-
-    const server = http.createServer((req, res) => router.lookup(req, res));
-    server.listen(argv.port);
+    const {server, cleaner} = createServer();
+    server.listen(args.port);
     await new Promise(resolve => server.once("listening", resolve));
+    cleaner.start();
+    initCouncilShutdownHandlers({logger, server, cleaner});
     logger.info("Ready", {"service.type": "ratcouncil"});
 }
 

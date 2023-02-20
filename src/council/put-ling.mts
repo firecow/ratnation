@@ -1,34 +1,16 @@
 import assert from "assert";
 import crypto from "crypto";
-import {IncomingMessage, ServerResponse} from "http";
 import rawBody from "raw-body";
-import {Logger} from "../logger.mjs";
-import {State} from "../state-handler.mjs";
-import {CouncilProvisioner} from "./council-provisioner.mjs";
+import {RouteCtx} from "./council-server.mjs";
 
-export default async function putling (logger: Logger, req: IncomingMessage, res: ServerResponse, state: State, provisioner: CouncilProvisioner) {
+export default async function ({req, res, state, provisioner}: RouteCtx) {
     const body = await rawBody(req);
+    assert(body.length > 0, "no json data received");
     const data = JSON.parse(`${body}`);
-    if (data["ratholes"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("ratholes field cannot be null or undefined\n");
-    }
-    if (data["prefered_location"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("prefered_location field cannot be null or undefined\n");
-    }
-    if (data["ready_service_ids"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("ready_service_ids field cannot be null or undefined\n");
-    }
-    if (data["shutting_down"] == null) {
-        res.statusCode = 400;
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        return res.end("shutting_down field cannot be null or undefined\n");
-    }
+    assert(data["ratholes"] != null, "ratholes field cannot be null or undefined");
+    assert(data["prefered_location"] != null, "prefered_location field cannot be null or undefined");
+    assert(data["shutting_down"] != null, "shutting_down field cannot be null or undefined");
+    assert(data["ready_service_ids"] != null, "ready_service_ids field cannot be null or undefined");
 
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);
@@ -57,7 +39,8 @@ export default async function putling (logger: Logger, req: IncomingMessage, res
         const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_id"] === data["ling_id"]);
         if (service) {
             res.setHeader("Content-Type", "text/plain; charset=utf-8");
-            return res.end("ok");
+            res.end("ok");
+            return;
         }
 
         const token = `${crypto.randomBytes(20).toString("hex")}`;
