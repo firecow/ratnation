@@ -37,5 +37,5 @@ nodejs `>=18.x.x`
 ### Code reloading script
 
 ```
-node src/start-dev-mjs
+node src/start-dev.mjs
 ```

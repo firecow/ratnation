@@ -21,7 +21,7 @@ export class LingSyncer extends Ticker {
                 shutting_down: this.context.shuttingDown,
                 ratholes: Array.from(this.context.config.ratholeMap.values()),
                 ready_service_ids: this.context.readyServiceIds,
-                prefered_location: "mylocation",
+                preferred_location: "mylocation",
             },
         }));
         if (err || response.statusCode !== 200) {

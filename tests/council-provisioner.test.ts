@@ -21,7 +21,7 @@ test("it find available port on king", () => {
                 token: "some_token",
                 ling_ready: false,
                 king_ready: false,
-                prefered_location: "myhoues",
+                preferred_location: "myhouse",
                 host: null,
                 bind_port: null,
                 remote_port: null,

@@ -1,12 +1,15 @@
 import {execa, ExecaChildProcess, Options} from "execa";
 import waitFor from "p-wait-for";
+import split2 from "split2";
 import {Logger} from "./logger.mjs";
+import {Transform} from "stream";
 
 interface ProcessManagerEnsureProcessOpts {
     key: string;
     file: string;
     args: string[];
     options: Options;
+    initTransform: () => Transform;
 }
 
 export class ProcessManager {
@@ -35,21 +38,19 @@ export class ProcessManager {
     async killProcess (key: string, signal: NodeJS.Signals): Promise<void> {
         const p = this.processMap.get(key);
         if (!p) return;
-        p.stdout?.unpipe(process.stdout);
-        p.stderr?.unpipe(process.stderr);
         p.kill(signal);
 
         await waitFor(() => p.exitCode != null);
     }
 
-    ensureProcess ({key, file, args, options}: ProcessManagerEnsureProcessOpts) {
+    ensureProcess ({key, file, args, options, initTransform}: ProcessManagerEnsureProcessOpts) {
         if (this.processMap.has(key)) return;
 
         const logger = this.logger;
         const p = execa(file, args, options);
         logger.info(`Started ${p.spawnargs.join(" ")}`, {"service.type": this.serviceType});
-        p.stdout?.pipe(process.stdout);
-        p.stderr?.pipe(process.stderr);
+        p.stdout?.pipe(split2()).pipe(initTransform()).pipe(process.stdout);
+        p.stderr?.pipe(split2()).pipe(initTransform()).pipe(process.stderr);
 
         void p.once("exit", (code) => {
             logger.info(`Exiting ${p.spawnargs.join(" ")}`, {"service.type": this.serviceType, "process.exit_code": code});

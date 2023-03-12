@@ -23,7 +23,7 @@ export interface StateService {
     token: string;
     service_id: string;
     ling_id: string;
-    prefered_location: string;
+    preferred_location: string;
 
     ling_ready: boolean;
     king_ready: boolean;

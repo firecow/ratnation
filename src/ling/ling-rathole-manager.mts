@@ -4,6 +4,7 @@ import {ProcessManager} from "../process-manager.mjs";
 import {StateService} from "../state-handler.mjs";
 import {LingConfig} from "./ling-config.mjs";
 import {LingContext} from "./ling.mjs";
+import {RatholeTransform} from "../rathole-transform.mjs";
 
 export class LingRatholeManager extends ProcessManager {
 
@@ -56,14 +57,17 @@ export class LingRatholeManager extends ProcessManager {
 
         const kingBindAddrs = services.map(s => `${s.host}:${s.bind_port}`);
 
-        // Ensure rathole process is running and maintaing rathole client configuration file
+        // Ensure rathole process is running and maintain rathole client configuration file
         for (const kingBindAddr of kingBindAddrs) {
             const ratholeFile = this.#writeRatholeFile(kingBindAddr, services, config, lingId);
             this.ensureProcess({
                 key: kingBindAddr,
                 file: "rathole",
                 args: ["--client", ratholeFile],
-                options: {cwd: "src/ling/", env: {RUST_LOG: "warn"}}
+                options: {cwd: "src/ling/", env: {RUST_LOG: "warn"}},
+                initTransform () {
+                    return new RatholeTransform();
+                },
             });
         }
 

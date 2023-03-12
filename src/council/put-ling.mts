@@ -1,14 +1,14 @@
 import assert from "assert";
 import crypto from "crypto";
-import rawBody from "raw-body";
 import {RouteCtx} from "./council-server.mjs";
+import {streamToString} from "../utils.mjs";
 
 export default async function ({req, res, state, provisioner}: RouteCtx) {
-    const body = await rawBody(req);
+    const body = await streamToString(req);
     assert(body.length > 0, "no json data received");
     const data = JSON.parse(`${body}`);
     assert(data["ratholes"] != null, "ratholes field cannot be null or undefined");
-    assert(data["prefered_location"] != null, "prefered_location field cannot be null or undefined");
+    assert(data["preferred_location"] != null, "preferred_location field cannot be null or undefined");
     assert(data["shutting_down"] != null, "shutting_down field cannot be null or undefined");
     assert(data["ready_service_ids"] != null, "ready_service_ids field cannot be null or undefined");
 
@@ -48,7 +48,7 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
             service_id: crypto.randomUUID(),
             name: rathole["name"],
             token: token,
-            prefered_location: data["prefered_location"],
+            preferred_location: data["preferred_location"],
             ling_id: data["ling_id"],
             ling_ready: false,
             remote_port: null,

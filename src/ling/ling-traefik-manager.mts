@@ -3,6 +3,7 @@ import {ProcessManager} from "../process-manager.mjs";
 import {StateService} from "../state-handler.mjs";
 import {LingProxyConfig} from "./ling-config.mjs";
 import {LingContext} from "./ling.mjs";
+import {TraefikTransform} from "../traefik-transform.mjs";
 
 export class LingTraefikManager extends ProcessManager {
 
@@ -65,6 +66,9 @@ export class LingTraefikManager extends ProcessManager {
             file: "traefik",
             args: [`--entrypoints.tcp.address=:${bindPort}/tcp`, `--providers.file.filename=${traefikFile}`, "--providers.file.watch=true", "--log.level=error"],
             options: {cwd: "src/ling"},
+            initTransform () {
+                return new TraefikTransform();
+            }
         });
     }
 

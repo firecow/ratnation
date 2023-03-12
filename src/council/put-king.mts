@@ -1,9 +1,9 @@
 import assert from "assert";
-import rawBody from "raw-body";
 import {RouteCtx} from "./council-server.mjs";
+import {streamToString} from "../utils.mjs";
 
 export default async function ({req, res, state, provisioner}: RouteCtx) {
-    const body = await rawBody(req);
+    const body = await streamToString(req);
     assert(body.length > 0, "no json data received");
     const data = JSON.parse(`${body}`);
     assert(data["ratholes"] != null, "ratholes field cannot be null or undefined");
