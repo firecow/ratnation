@@ -14,7 +14,6 @@ export class RatholeTransform extends Transform {
                 "process.title": "rathole",
             }) + "\n");
         } else {
-            console.log(`${chunk}`);
             callback(new Error("RatholeTransform didn't not parse rathole output correctly"));
         }
     }
