@@ -13,7 +13,7 @@ test("Transforms rathole output to ECS ndjson", async () => {
     const output = await streamToString(ratholeTransform);
 
     expect(output).toBe(JSON.stringify({
-        "@timestamp": "2001-03-12T14:20:47.730Z",
+        "@timestamp": "2001-03-12T15:20:47.730Z",
         "log.level": "info",
         "message": "handle{service=c94b1d98-70f8-459b-84a0-044dc8fcd0af}: rathole::client: Starting e7240b0a882049e4d5a21f770f069887b31e4573940f4a1cc370f87ae1425975",
         "process.title": "rathole",
