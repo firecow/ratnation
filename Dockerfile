@@ -1,4 +1,4 @@
-FROM traefik:v2.9.10 as traefik
+FROM traefik:v2.10.0 as traefik
 
 FROM alpine:3.17.3 as node_modules
 RUN apk add nodejs npm
