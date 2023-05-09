@@ -11,7 +11,7 @@
     "chalk-template": "1.0.0",
     "delay": "5.0.0",
     "execa": "7.1.1",
-    "find-my-way": "7.6.1",
+    "find-my-way": "7.6.2",
     "got": "12.6.0",
     "is-port-reachable": "4.0.0",
     "p-wait-for": "5.0.2",
