@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "await-to-js": "3.0.0",
-    "chalk-template": "1.0.0",
+    "chalk-template": "1.1.0",
     "delay": "6.0.0",
     "execa": "7.1.1",
     "find-my-way": "7.6.2",
