@@ -48,3 +48,4 @@ jobs:
       - run: npm ci --no-audit
       - run: npm run build
       - run: npm test
+      - run: node src/index.mjs --help
