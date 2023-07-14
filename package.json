@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "fix": "eslint . --fix && tsc",
+    "fix": "eslint . --fix",
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest --coverage"
   },
   "dependencies": {
@@ -12,7 +12,7 @@
     "delay": "6.x",
     "execa": "7.x",
     "find-my-way": "7.x",
-    "got": "12.x",
+    "got": "13.x",
     "is-port-reachable": "4.x",
     "p-wait-for": "5.x",
     "source-map-support": "0.5.x",
@@ -21,11 +21,11 @@
   },
   "devDependencies": {
     "@jest/globals": "29.x",
-    "@types/node": "18.x",
+    "@types/node": "20.x",
     "@types/split2": "4.x",
     "@types/supertest": "2.x",
-    "@typescript-eslint/eslint-plugin": "5.x",
-    "@typescript-eslint/parser": "5.x",
+    "@typescript-eslint/eslint-plugin": "6.x",
+    "@typescript-eslint/parser": "6.x",
     "eslint": "8.x",
     "jest": "29.x",
     "supertest": "6.x",
