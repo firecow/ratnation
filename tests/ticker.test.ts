@@ -29,6 +29,8 @@ test("ticker.start()", async () => {
     });
     ticker.start();
 
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     await waitForExpect(() => expect(tickMock).toHaveBeenCalled());
 });
 
