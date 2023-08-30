@@ -19,7 +19,7 @@ export async function streamToString (stream: Readable): Promise<string> {
     });
 }
 
-export async function to<T>(promise: Promise<T>) {
+export async function to<T> (promise: Promise<T>) {
     return promise
         .then((data) => [null, data])
         .catch((err) => {
