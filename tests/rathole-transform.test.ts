@@ -1,7 +1,7 @@
 import {expect, test} from "@jest/globals";
 import {pipeline} from "stream/promises";
 import {Readable} from "stream";
-import {RatholeTransform} from "../src/rathole-transform.mjs";
+import {RatholeTransform} from "../src/stream/rathole-transform.mjs";
 import {streamToString} from "../src/utils.mjs";
 
 test("Transforms rathole output to ECS ndjson", async () => {

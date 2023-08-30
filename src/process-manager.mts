@@ -1,8 +1,9 @@
-import {execa, ExecaChildProcess, Options} from "execa";
+import {execa, Options} from "execa";
 import waitFor from "p-wait-for";
 import split2 from "split2";
 import {Logger} from "./logger.mjs";
 import {Transform} from "stream";
+import {ChildProcess} from "child_process";
 
 interface ProcessManagerEnsureProcessOpts {
     key: string;
@@ -15,7 +16,7 @@ interface ProcessManagerEnsureProcessOpts {
 export class ProcessManager {
 
     public readonly logger;
-    private readonly processMap = new Map<string, ExecaChildProcess>();
+    private readonly processMap = new Map<string, ChildProcess>();
     private readonly serviceType;
 
     constructor ({logger, serviceType}: {logger: Logger; serviceType: string}) {

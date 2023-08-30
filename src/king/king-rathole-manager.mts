@@ -4,7 +4,7 @@ import {ProcessManager} from "../process-manager.mjs";
 import {StateService} from "../state-handler.mjs";
 import {KingRatholeConfig} from "./king-config.mjs";
 import {KingContext} from "./king.mjs";
-import {RatholeTransform} from "../rathole-transform.mjs";
+import {RatholeTransform} from "../stream/rathole-transform.mjs";
 
 export class KingRatholeManager extends ProcessManager {
 
@@ -72,7 +72,7 @@ export class KingRatholeManager extends ProcessManager {
             options: {cwd: "src/king", env: {RUST_LOG: "warn"}},
             initTransform () {
                 return new RatholeTransform();
-            }
+            },
         });
 
         return services.map((s) => s.service_id);

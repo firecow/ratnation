@@ -1,5 +1,5 @@
 import {expect, test} from "@jest/globals";
-import {TraefikTransform} from "../src/traefik-transform.mjs";
+import {TraefikTransform} from "../src/stream/traefik-transform.mjs";
 import {pipeline} from "stream/promises";
 import {Readable} from "stream";
 import {streamToString} from "../src/utils.mjs";

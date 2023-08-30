@@ -37,7 +37,7 @@ export function handler (args: ArgumentsCamelCase) {
     const logger = new Logger();
     const ticker = new Ticker({
         interval: Number(args["interval"]),
-        tick: async () => await tick(logger, args as ArgumentsCamelCase<RequestArguments>)
+        tick: async () => await tick(logger, args as ArgumentsCamelCase<RequestArguments>),
     });
     process.on("SIGINT", () => ticker.stop());
     process.on("SIGTERM", () => ticker.stop());

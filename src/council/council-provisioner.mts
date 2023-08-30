@@ -55,7 +55,7 @@ export class CouncilProvisioner {
         this.state.revision++;
 
         logger.info(`Provisioned ${service.name} to ${king.host}:${service.bind_port}, exposed on ${king.host}:${service.remote_port}`, {
-            "service.type": "ratcouncil"
+            "service.type": "ratcouncil",
         });
     }
 

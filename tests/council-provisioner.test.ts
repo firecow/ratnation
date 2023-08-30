@@ -42,9 +42,9 @@ test("it find available port on king", () => {
                 "host": "kinghost.com",
                 "location": "myhouse",
                 "ports": "5000-5000",
-                "shutting_down": false
+                "shutting_down": false,
             },
-            "ports": [5000]
-        }
+            "ports": [5000],
+        },
     ]);
 });

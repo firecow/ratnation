@@ -3,7 +3,7 @@ import {ProcessManager} from "../process-manager.mjs";
 import {StateService} from "../state-handler.mjs";
 import {LingProxyConfig} from "./ling-config.mjs";
 import {LingContext} from "./ling.mjs";
-import {TraefikTransform} from "../traefik-transform.mjs";
+import {TraefikTransform} from "../stream/traefik-transform.mjs";
 
 export class LingTraefikManager extends ProcessManager {
 
@@ -16,17 +16,17 @@ export class LingTraefikManager extends ProcessManager {
 
     #getServices ({name}: {name: string}) {
         const state = this.context.state;
-        return state.services.filter(s => {
+        return state.services.filter((s) => {
             if (s.name !== name) {
                 return false;
             }
 
-            const ling = state.lings.find(l => l.ling_id === s.ling_id);
+            const ling = state.lings.find((l) => l.ling_id === s.ling_id);
             if (!ling || ling.shutting_down || !s.ling_ready) {
                 return false;
             }
 
-            const king = state.kings.find(k => k.host === s.host && k.bind_port === s.bind_port);
+            const king = state.kings.find((k) => k.host === s.host && k.bind_port === s.bind_port);
             return (king && !king.shutting_down && s.king_ready);
         });
     }
@@ -68,7 +68,7 @@ export class LingTraefikManager extends ProcessManager {
             options: {cwd: "src/ling"},
             initTransform () {
                 return new TraefikTransform();
-            }
+            },
         });
     }
 

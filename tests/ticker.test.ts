@@ -15,7 +15,7 @@ afterEach(() => {
 test("ticker.tick()", async () => {
     ticker = new Ticker({
         interval: 500,
-        tick: tickMock
+        tick: tickMock,
     });
     await ticker.tick();
 
@@ -25,7 +25,7 @@ test("ticker.tick()", async () => {
 test("ticker.start()", async () => {
     ticker = new Ticker({
         interval: 500,
-        tick: tickMock
+        tick: tickMock,
     });
     ticker.start();
 
@@ -37,7 +37,7 @@ test("ticker.start()", async () => {
 test("ticker.stop()", () => {
     ticker = new Ticker({
         interval: 500,
-        tick: tickMock
+        tick: tickMock,
     });
     ticker.stop();
 });

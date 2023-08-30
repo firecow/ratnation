@@ -24,7 +24,7 @@ export function initKingShutdownHandlers ({context, stateHandler, syncer, rathol
         // TODO: We can do better that arbitrary sleep's
         await delay(1000);
         await Promise.allSettled([
-            ratholeManager.killProcesses(signal)
+            ratholeManager.killProcesses(signal),
         ]);
     };
     process.on("SIGINT", listener);

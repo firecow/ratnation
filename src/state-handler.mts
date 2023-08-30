@@ -71,7 +71,7 @@ export class StateHandler extends Ticker {
             return logger.error("Failed to fetch state from council", {
                 "error.message": err?.message,
                 "error.stack_trace": err?.stack,
-                "http.response.status_code": response?.statusCode
+                "http.response.status_code": response?.statusCode,
             });
         }
 

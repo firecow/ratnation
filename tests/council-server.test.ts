@@ -30,7 +30,7 @@ describe("PUT /king", () => {
             ratholes: [],
             ready_service_ids: [],
             location: "mylocation",
-            host: "example.com"
+            host: "example.com",
         });
         expect(res.text).toEqual("ok");
         expect(res.statusCode).toEqual(200);

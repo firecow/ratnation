@@ -1,9 +1,10 @@
-import {execa, ExecaChildProcess} from "execa";
+import {execa} from "execa";
 import os from "os";
 import waitFor from "p-wait-for";
+import {ChildProcess} from "child_process";
 
 const hostname = os.hostname();
-const subprocesses: ExecaChildProcess[] = [];
+const subprocesses: ChildProcess[] = [];
 
 async function killSubprocesses () {
     const proms = [];

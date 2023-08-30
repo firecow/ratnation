@@ -28,7 +28,7 @@ export class KingSyncer extends Ticker {
             logger.error("Failed to sync with council", {
                 "error.message": err?.message,
                 "error.stack_trace": err?.stack,
-                "service.type": "ratking"
+                "service.type": "ratking",
             });
         }
     }

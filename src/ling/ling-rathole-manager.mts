@@ -4,7 +4,7 @@ import {ProcessManager} from "../process-manager.mjs";
 import {StateService} from "../state-handler.mjs";
 import {LingConfig} from "./ling-config.mjs";
 import {LingContext} from "./ling.mjs";
-import {RatholeTransform} from "../rathole-transform.mjs";
+import {RatholeTransform} from "../stream/rathole-transform.mjs";
 
 export class LingRatholeManager extends ProcessManager {
 
@@ -41,7 +41,7 @@ export class LingRatholeManager extends ProcessManager {
             lines.push(
                 `[client.services.${service.service_id.replace(/:/g, "-")}]`,
                 `token = "${service.token}"`,
-                `local_addr = "${ratholeCnf.local_addr}"`
+                `local_addr = "${ratholeCnf.local_addr}"`,
             );
         }
 

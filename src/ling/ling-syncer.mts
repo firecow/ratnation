@@ -28,7 +28,7 @@ export class LingSyncer extends Ticker {
             logger.error("Failed to sync with council", {
                 "error.message": err?.message,
                 "error.stack_trace": err?.stack,
-                "service.type": "ratling"
+                "service.type": "ratling",
             });
         }
     }
