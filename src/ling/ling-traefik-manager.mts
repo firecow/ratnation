@@ -14,7 +14,7 @@ export class LingTraefikManager extends ProcessManager {
         this.context = context;
     }
 
-    #getServices ({name}: {name: string}) {
+    private getServices ({name}: {name: string}) {
         const state = this.context.state;
         return state.services.filter((s) => {
             if (s.name !== name) {
@@ -31,7 +31,7 @@ export class LingTraefikManager extends ProcessManager {
         });
     }
 
-    #writeTraefikFile ({bindPort, name, services}: {bindPort: number; name: string; services: StateService[]}) {
+    private writeTraefikFile ({bindPort, name, services}: {bindPort: number; name: string; services: StateService[]}) {
         const lines = [];
         lines.push(
             "[tcp.routers.default]",
@@ -52,15 +52,15 @@ export class LingTraefikManager extends ProcessManager {
         return traefikFile;
     }
 
-    async #each (proxyCnf: LingProxyConfig) {
+    async each (proxyCnf: LingProxyConfig) {
         const bindPort = proxyCnf["bind_port"];
         const name = proxyCnf["name"];
-        const services = this.#getServices({name});
+        const services = this.getServices({name});
         if (services.length === 0) {
             return this.killProcess(`${bindPort}`, "SIGTERM");
         }
 
-        const traefikFile = this.#writeTraefikFile({bindPort, name, services});
+        const traefikFile = this.writeTraefikFile({bindPort, name, services});
         this.ensureProcess({
             key: `${bindPort}`,
             file: "traefik",
@@ -75,7 +75,7 @@ export class LingTraefikManager extends ProcessManager {
     async stateChanged () {
         const proms = [];
         for (const proxyCnf of this.context.config.proxyMap.values()) {
-            proms.push(this.#each(proxyCnf));
+            proms.push(this.each(proxyCnf));
         }
         await Promise.all(proms);
     }

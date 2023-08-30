@@ -9,8 +9,11 @@ export interface KingRatholeConfig {
 export class KingConfig {
 
     ratholes: KingRatholeConfig[] = [];
+    location: string;
 
     constructor (args: KingArguments) {
+        this.location = args.location;
+
         for (const ratholeArg of args.rathole ?? []) {
             const pairs: {[key: string]: string} = {};
             for (const pair of ratholeArg.split(" ")) {

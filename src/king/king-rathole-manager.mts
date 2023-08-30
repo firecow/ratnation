@@ -15,7 +15,7 @@ export class KingRatholeManager extends ProcessManager {
         this.context = context;
     }
 
-    #getServices ({bindPort, host}: {bindPort: number; host: string}) {
+    private getServices ({bindPort, host}: {bindPort: number; host: string}) {
         const logger = this.logger;
         const state = this.context.state;
         return state.services.filter(s => {
@@ -33,7 +33,7 @@ export class KingRatholeManager extends ProcessManager {
         });
     }
 
-    #writeRatholeFile ({bindPort, services}: {bindPort: number; services: StateService[]}) {
+    private writeRatholeFile ({bindPort, services}: {bindPort: number; services: StateService[]}) {
         const lines = [];
         lines.push(
             "[server]",
@@ -55,16 +55,16 @@ export class KingRatholeManager extends ProcessManager {
         return ratholeFile;
     }
 
-    async #each (ratholeCnf: KingRatholeConfig) {
+    private async each (ratholeCnf: KingRatholeConfig) {
         const bindPort = ratholeCnf.bind_port;
         const host = this.context.host;
-        const services = this.#getServices({bindPort, host});
+        const services = this.getServices({bindPort, host});
         if (services.length === 0) {
             await this.killProcess(`${bindPort}`, "SIGTERM");
             return [];
         }
 
-        const ratholeFile = this.#writeRatholeFile({bindPort, services});
+        const ratholeFile = this.writeRatholeFile({bindPort, services});
         this.ensureProcess({
             key: `${bindPort}`,
             file: "rathole",
@@ -86,7 +86,7 @@ export class KingRatholeManager extends ProcessManager {
         await delay(1500);
 
         for (const ratholeCnf of this.context.config.ratholes) {
-            readyServices = readyServices.concat(await this.#each(ratholeCnf));
+            readyServices = readyServices.concat(await this.each(ratholeCnf));
         }
         this.context.readyServiceIds = readyServices;
     }

@@ -12,6 +12,7 @@ export interface KingArguments {
     "council-host": string;
     "rathole": string[];
     "host": string;
+    "location": string;
 }
 
 export class KingContext {
@@ -22,7 +23,6 @@ export class KingContext {
     shuttingDown: boolean;
     councilHost: string;
     host: string;
-    location: string;
 
     constructor (logger: Logger, config: KingConfig, args: KingArguments) {
         this.logger = logger;
@@ -32,7 +32,6 @@ export class KingContext {
         this.shuttingDown = false;
         this.host = args["host"];
         this.councilHost = args["council-host"];
-        this.location = "mylocation"; // TODO: location from cli options
     }
 }
 
@@ -74,6 +73,11 @@ export function builder (yargs: Argv) {
     yargs.options("rathole", {
         type: "array",
         description: "Rathole servers to open",
+    });
+    yargs.options("location", {
+        type: "string",
+        description: "Location identifier",
+        demandOption: true,
     });
     return yargs;
 }

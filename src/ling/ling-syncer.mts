@@ -8,11 +8,11 @@ export class LingSyncer extends Ticker {
     private readonly context;
 
     constructor (context: LingContext) {
-        super({interval: 1000, tick: async () => this.#sync()});
+        super({interval: 1000, tick: async () => this.sync()});
         this.context = context;
     }
 
-    async #sync () {
+    private async sync () {
         const logger = this.context.logger;
         const [err, response] = await to(got(`${this.context.councilHost}/ling`, {
             method: "PUT",

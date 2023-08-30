@@ -26,6 +26,7 @@ services:
       --council-host="http://172.17.0.1:8080"
       --host="172.17.0.1"
       --rathole="bind_port=2333 ports=5000-5001"
+      --location=CPH
     ports:
       - { target: 2333, published: 2333, protocol: tcp, mode: host }
       - { target: 5000, published: 5000, protocol: tcp, mode: host }
@@ -40,6 +41,7 @@ services:
       --host="172.17.0.1"
       --rathole="bind_port=2334 ports=5002-5003"
       --rathole="bind_port=2335 ports=5004-5004"
+      --location=AMS
     ports:
       - { target: 2334, published: 2334, protocol: tcp, mode: host }
       - { target: 2335, published: 2335, protocol: tcp, mode: host }

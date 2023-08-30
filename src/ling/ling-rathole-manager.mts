@@ -15,7 +15,7 @@ export class LingRatholeManager extends ProcessManager {
         this.context = context;
     }
 
-    #getServices ({config, lingId}: {config: LingConfig; lingId: string}): StateService[] {
+    private getServices ({config, lingId}: {config: LingConfig; lingId: string}): StateService[] {
         const state = this.context.state;
         return state.services.filter(s => {
             const king = state.kings.find(k => k.host === s.host && k.bind_port === s.bind_port);
@@ -26,7 +26,7 @@ export class LingRatholeManager extends ProcessManager {
         });
     }
 
-    #writeRatholeFile (kingBindAddr: string, services: StateService[], config: LingConfig, lingId: string): string {
+    private writeRatholeFile (kingBindAddr: string, services: StateService[], config: LingConfig, lingId: string): string {
         const lines = [];
         lines.push(
             "[client]",
@@ -53,13 +53,13 @@ export class LingRatholeManager extends ProcessManager {
     async stateChanged () {
         const config = this.context.config;
         const lingId = this.context.lingId;
-        const services = this.#getServices({config, lingId});
+        const services = this.getServices({config, lingId});
 
         const kingBindAddrs = services.map(s => `${s.host}:${s.bind_port}`);
 
         // Ensure rathole process is running and maintain rathole client configuration file
         for (const kingBindAddr of kingBindAddrs) {
-            const ratholeFile = this.#writeRatholeFile(kingBindAddr, services, config, lingId);
+            const ratholeFile = this.writeRatholeFile(kingBindAddr, services, config, lingId);
             this.ensureProcess({
                 key: kingBindAddr,
                 file: "rathole",
