@@ -1,16 +1,16 @@
 FROM traefik:v2.10.4 AS traefik
 
-FROM alpine:3.18.2 AS rathole
+FROM alpine:3.18.3 AS rathole
 RUN apk add nodejs curl && \
  wget -O rathole.zip https://github.com/rapiz1/rathole/releases/download/v0.4.8/rathole-x86_64-unknown-linux-musl.zip && \
  unzip rathole.zip
 
-FROM alpine:3.18.2 AS node_modules
+FROM alpine:3.18.3 AS node_modules
 RUN apk add nodejs npm
 COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-progress --omit=dev
 
-FROM alpine:3.18.2
+FROM alpine:3.18.3
 RUN apk add nodejs npm
 COPY --from=node_modules /node_modules /node_modules
 COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
