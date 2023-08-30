@@ -8,11 +8,11 @@ export const description = "Start council";
 
 export async function handler (args: ArgumentsCamelCase) {
     const logger = new Logger();
-    const {server, cleaner} = createServer();
-    server.listen(args.port);
-    await new Promise(resolve => server.once("listening", resolve));
+    const {httpServer, cleaner} = createServer();
+    httpServer.listen(args.port);
+    await new Promise(resolve => httpServer.once("listening", resolve));
     cleaner.start();
-    initCouncilShutdownHandlers({logger, server, cleaner});
+    initCouncilShutdownHandlers({logger, httpServer, cleaner});
     logger.info("Ready", {"service.type": "ratcouncil"});
 }
 

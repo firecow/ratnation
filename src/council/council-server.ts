@@ -9,6 +9,7 @@ import getState from "./get-state.js";
 import putKing from "./put-king.js";
 import putLing from "./put-ling.js";
 import {to} from "../utils.js";
+import {Server as SocketIOServer} from "socket.io";
 
 export interface RouteRes { end: (str: string) => void; setHeader: (key: string, val: string) => void}
 export interface RouteCtx {
@@ -59,5 +60,8 @@ export default function createServer () {
     router.on("PUT", "/ling", initRoute(putLing));
     router.on("PUT", "/king", initRoute(putKing));
 
-    return {server: http.createServer((req, res) => router.lookup(req, res)), cleaner};
+    const httpServer = http.createServer((req, res) => router.lookup(req, res));
+    const socketIo = new SocketIOServer(httpServer);
+
+    return {httpServer, cleaner, socketIo};
 }

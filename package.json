@@ -97,16 +97,14 @@
     "testMatch": [
       "**/tests/**/*.test.ts"
     ],
+    "collectCoverageFrom": [
+      "src/**/*.{ts,js}",
+      "!src/index.{ts,js}"
+    ],
     "coverageReporters": [
       "text-summary",
       "json-summary",
       "lcov"
-    ],
-    "collectCoverageFrom": [
-      "!src/index.js",
-      "**/*.js",
-      "!**/node_modules/**",
-      "!**/coverage/**"
     ]
   }
 }

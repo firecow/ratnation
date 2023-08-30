@@ -15,4 +15,4 @@ COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
 COPY --from=rathole /rathole /usr/local/bin/rathole
 COPY package.json ./
 COPY src src
-ENTRYPOINT ["node", "src/index.mjs"]
+ENTRYPOINT ["node", "src/index.js"]
