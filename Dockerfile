@@ -1,6 +1,6 @@
-FROM traefik:v2.10.4 as traefik
+FROM traefik:v2.10.4 AS traefik
 
-FROM alpine:3.18.2 as node_modules
+FROM alpine:3.18.2 AS node_modules
 RUN apk add nodejs npm
 COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-progress --omit=dev

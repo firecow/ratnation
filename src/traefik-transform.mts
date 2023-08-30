@@ -6,7 +6,7 @@ export class TraefikTransform extends Transform {
     _transform (chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback) {
         const res = /time="(?<time>.*?)" level=(?<level>.*?) msg="(?<msg>.*?)"/g.exec(`${chunk}`);
         if (res) {
-            assert(res.groups != null && res.groups.time);
+            assert(res.groups?.time != null);
             callback(null, JSON.stringify({
                 "@timestamp": new Date(res.groups.time).toISOString(),
                 "log.level": res.groups?.level.toLowerCase(),

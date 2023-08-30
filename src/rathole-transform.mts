@@ -6,7 +6,7 @@ export class RatholeTransform extends Transform {
     _transform (chunk: Buffer, encoding: BufferEncoding, callback: TransformCallback) {
         const res = /(?<time>.*?) {2}(?<level>.*?) (?<msg>.*)/g.exec(`${chunk}`);
         if (res) {
-            assert(res.groups != null && res.groups.time);
+            assert(res.groups?.time != null);
             const timeWithZone = new Date(res.groups.time);
             timeWithZone.setMinutes(timeWithZone.getMinutes() - timeWithZone.getTimezoneOffset());
             callback(null, JSON.stringify({

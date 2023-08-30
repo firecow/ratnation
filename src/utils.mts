@@ -18,3 +18,11 @@ export async function streamToString (stream: Readable): Promise<string> {
         stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     });
 }
+
+export async function to<T>(promise: Promise<T>) {
+    return promise
+        .then((data) => [null, data])
+        .catch((err) => {
+            return [err, undefined];
+        });
+}

@@ -7,10 +7,9 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 jest --coverage"
   },
   "dependencies": {
-    "await-to-js": "3.x",
     "chalk-template": "1.x",
     "delay": "6.x",
-    "execa": "7.x",
+    "execa": "8.x",
     "find-my-way": "7.x",
     "got": "13.x",
     "is-port-reachable": "4.x",

@@ -19,7 +19,7 @@ export class LingRatholeManager extends ProcessManager {
         const state = this.context.state;
         return state.services.filter(s => {
             const king = state.kings.find(k => k.host === s.host && k.bind_port === s.bind_port);
-            if (king && king.shutting_down) {
+            if (king?.shutting_down) {
                 return false;
             }
             return config.ratholeMap.has(s.name) && s.ling_id === lingId && s.king_ready === true;

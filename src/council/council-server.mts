@@ -1,5 +1,4 @@
 import {AssertionError} from "assert";
-import {to} from "await-to-js";
 import findmyway from "find-my-way";
 import http, {IncomingMessage, ServerResponse} from "http";
 import {Logger} from "../logger.mjs";
@@ -9,6 +8,7 @@ import {CouncilProvisioner} from "./council-provisioner.mjs";
 import getState from "./get-state.mjs";
 import putKing from "./put-king.mjs";
 import putLing from "./put-ling.mjs";
+import {to} from "../utils.mjs";
 
 export interface RouteRes { end: (str: string) => void; setHeader: (key: string, val: string) => void}
 export interface RouteCtx {

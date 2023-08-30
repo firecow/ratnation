@@ -1,6 +1,4 @@
 ---
-version: "3.9"
-
 networks:
   host:
     name: host
@@ -25,8 +23,8 @@ services:
     networks: [host]
     command:
       king
-      --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
-      --host="$DOCKER_SWARN_NODE_IP"
+      --council-host="http://172.17.0.1:8080"
+      --host="172.17.0.1"
       --rathole="bind_port=2333 ports=5000-5001"
     ports:
       - { target: 2333, published: 2333, protocol: tcp, mode: host }
@@ -38,8 +36,8 @@ services:
     networks: [host]
     command:
       king
-      --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
-      --host="$DOCKER_SWARN_NODE_IP"
+      --council-host="http://172.17.0.1:8080"
+      --host="172.17.0.1"
       --rathole="bind_port=2334 ports=5002-5003"
       --rathole="bind_port=2335 ports=5004-5004"
     ports:
@@ -55,7 +53,7 @@ services:
     networks: [alpha]
     command:
       ling
-      --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
+      --council-host="http://172.17.0.1:8080"
       --rathole="name=alpha local_addr=echoserver-alpha:8080"
   echoserver-alpha:
     hostname: echoserver-alpha
@@ -68,8 +66,9 @@ services:
     networks: [beta]
     command:
       ling
-      --council-host="http://$DOCKER_SWARN_NODE_IP:8080"
+      --council-host="http://172.17.0.1:8080"
       --proxy="name=alpha bind_port=2184"
+  # This requester service should be able to reach echoserver-alpha through the ratling-beta on port 2182
   requester-beta:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     command: requester --url=http://ratling-beta:2184
