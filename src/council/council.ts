@@ -1,7 +1,7 @@
 import {ArgumentsCamelCase, Argv} from "yargs";
-import {Logger} from "../logger.mjs";
-import createServer from "./council-server.mjs";
-import {initCouncilShutdownHandlers} from "./council-shutdown.mjs";
+import {Logger} from "../logger.js";
+import createServer from "./council-server.js";
+import {initCouncilShutdownHandlers} from "./council-shutdown.js";
 
 export const command = "council";
 export const description = "Start council";

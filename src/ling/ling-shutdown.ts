@@ -1,9 +1,9 @@
 import delay from "delay";
-import {StateHandler} from "../state-handler.mjs";
-import {LingRatholeManager} from "./ling-rathole-manager.mjs";
-import {LingSyncer} from "./ling-syncer.mjs";
-import {LingTraefikManager} from "./ling-traefik-manager.mjs";
-import {LingContext} from "./ling.mjs";
+import {StateHandler} from "../state-handler.js";
+import {LingRatholeManager} from "./ling-rathole-manager.js";
+import {LingSyncer} from "./ling-syncer.js";
+import {LingTraefikManager} from "./ling-traefik-manager.js";
+import {LingContext} from "./ling.js";
 
 interface LingShutdownHandlersOpts {
     context: LingContext;

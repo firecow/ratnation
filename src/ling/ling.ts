@@ -1,14 +1,14 @@
 import crypto from "crypto";
 import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
-import {Logger} from "../logger.mjs";
-import {State, StateHandler} from "../state-handler.mjs";
-import {portsReachable} from "../utils.mjs";
-import {LingConfig} from "./ling-config.mjs";
-import {LingRatholeManager} from "./ling-rathole-manager.mjs";
-import {initLingShutdownHandlers} from "./ling-shutdown.mjs";
-import {LingSyncer} from "./ling-syncer.mjs";
-import {LingTraefikManager} from "./ling-traefik-manager.mjs";
+import {Logger} from "../logger.js";
+import {State, StateHandler} from "../state-handler.js";
+import {portsReachable} from "../utils.js";
+import {LingConfig} from "./ling-config.js";
+import {LingRatholeManager} from "./ling-rathole-manager.js";
+import {initLingShutdownHandlers} from "./ling-shutdown.js";
+import {LingSyncer} from "./ling-syncer.js";
+import {LingTraefikManager} from "./ling-traefik-manager.js";
 
 export interface LingArguments {
     "council-host": string;

@@ -1,6 +1,6 @@
 import assert from "assert";
-import {RouteCtx} from "./council-server.mjs";
-import {streamToString} from "../utils.mjs";
+import {RouteCtx} from "./council-server.js";
+import {streamToString} from "../utils.js";
 
 export default async function ({req, res, state, provisioner}: RouteCtx) {
     const body = await streamToString(req);

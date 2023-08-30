@@ -1,7 +1,7 @@
 import {beforeEach, expect, jest, test} from "@jest/globals";
-import {CouncilProvisioner} from "../src/council/council-provisioner.mjs";
-import {Logger} from "../src/logger.mjs";
-import {State} from "../src/state-handler.mjs";
+import {CouncilProvisioner} from "../src/council/council-provisioner.js";
+import {Logger} from "../src/logger.js";
+import {State} from "../src/state-handler.js";
 
 let provisioner: CouncilProvisioner;
 let logger: Logger;
@@ -11,7 +11,7 @@ beforeEach(() => {
 });
 
 
-test("it find available port on king", () => {
+test("Find available port on king", () => {
     const state: State = {
         services: [
             {

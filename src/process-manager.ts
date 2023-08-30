@@ -1,7 +1,7 @@
 import {execa, Options} from "execa";
 import waitFor from "p-wait-for";
 import split2 from "split2";
-import {Logger} from "./logger.mjs";
+import {Logger} from "./logger.js";
 import {Transform} from "stream";
 import {ChildProcess} from "child_process";
 

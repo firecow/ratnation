@@ -1,6 +1,6 @@
 import {beforeEach, expect, jest, test} from "@jest/globals";
-import {State, StateHandler} from "../src/state-handler.mjs";
-import {Logger} from "../src/logger.mjs";
+import {State, StateHandler} from "../src/state-handler.js";
+import {Logger} from "../src/logger.js";
 
 let stateHandler: StateHandler;
 let logger: Logger;
@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 
-test("it handles bad status code", async () => {
+test("Handles bad status code", async () => {
     await stateHandler.fetchState();
 
     expect(logger.error).toHaveBeenCalledWith("Failed to fetch state from council", expect.objectContaining({"error.message": "Invalid URL"}));

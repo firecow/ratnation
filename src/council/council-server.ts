@@ -1,14 +1,14 @@
 import {AssertionError} from "assert";
 import findmyway from "find-my-way";
 import http, {IncomingMessage, ServerResponse} from "http";
-import {Logger} from "../logger.mjs";
-import {State} from "../state-handler.mjs";
-import {CouncilStateCleaner} from "./coucil-state-cleaner.mjs";
-import {CouncilProvisioner} from "./council-provisioner.mjs";
-import getState from "./get-state.mjs";
-import putKing from "./put-king.mjs";
-import putLing from "./put-ling.mjs";
-import {to} from "../utils.mjs";
+import {Logger} from "../logger.js";
+import {State} from "../state-handler.js";
+import {CouncilStateCleaner} from "./coucil-state-cleaner.js";
+import {CouncilProvisioner} from "./council-provisioner.js";
+import getState from "./get-state.js";
+import putKing from "./put-king.js";
+import putLing from "./put-ling.js";
+import {to} from "../utils.js";
 
 export interface RouteRes { end: (str: string) => void; setHeader: (key: string, val: string) => void}
 export interface RouteCtx {

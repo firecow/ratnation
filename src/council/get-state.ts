@@ -1,5 +1,5 @@
-import {State} from "../state-handler.mjs";
-import {RouteRes} from "./council-server.mjs";
+import {State} from "../state-handler.js";
+import {RouteRes} from "./council-server.js";
 
 interface GetStateOpts {state: State; res: RouteRes}
 

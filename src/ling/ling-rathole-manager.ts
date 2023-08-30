@@ -1,10 +1,10 @@
 import assert from "assert";
 import fs from "fs";
-import {ProcessManager} from "../process-manager.mjs";
-import {StateService} from "../state-handler.mjs";
-import {LingConfig} from "./ling-config.mjs";
-import {LingContext} from "./ling.mjs";
-import {RatholeTransform} from "../stream/rathole-transform.mjs";
+import {ProcessManager} from "../process-manager.js";
+import {StateService} from "../state-handler.js";
+import {LingConfig} from "./ling-config.js";
+import {LingContext} from "./ling.js";
+import {RatholeTransform} from "../stream/rathole-transform.js";
 
 export class LingRatholeManager extends ProcessManager {
 

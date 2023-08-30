@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
-import {Ticker} from "../src/ticker.mjs";
+import {Ticker} from "../src/ticker.js";
 import waitForExpect from "wait-for-expect";
 
 let ticker: Ticker;

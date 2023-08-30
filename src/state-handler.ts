@@ -1,7 +1,7 @@
 import got from "got";
-import {Logger} from "./logger.mjs";
-import {Ticker} from "./ticker.mjs";
-import {to} from "./utils.mjs";
+import {Logger} from "./logger.js";
+import {Ticker} from "./ticker.js";
+import {to} from "./utils.js";
 
 export interface StateKing {
     bind_port: number;

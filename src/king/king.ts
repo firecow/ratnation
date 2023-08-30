@@ -1,12 +1,12 @@
 import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
-import {Logger} from "../logger.mjs";
-import {State, StateHandler} from "../state-handler.mjs";
-import {portsReachable} from "../utils.mjs";
-import {KingConfig} from "./king-config.mjs";
-import {KingRatholeManager} from "./king-rathole-manager.mjs";
-import {initKingShutdownHandlers} from "./king-shutdown.mjs";
-import {KingSyncer} from "./king-syncer.mjs";
+import {Logger} from "../logger.js";
+import {State, StateHandler} from "../state-handler.js";
+import {portsReachable} from "../utils.js";
+import {KingConfig} from "./king-config.js";
+import {KingRatholeManager} from "./king-rathole-manager.js";
+import {initKingShutdownHandlers} from "./king-shutdown.js";
+import {KingSyncer} from "./king-syncer.js";
 
 export interface KingArguments {
     "council-host": string;

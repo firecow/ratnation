@@ -1,7 +1,7 @@
 import delay from "delay";
 import {Server} from "http";
-import {Logger} from "../logger.mjs";
-import {CouncilStateCleaner} from "./coucil-state-cleaner.mjs";
+import {Logger} from "../logger.js";
+import {CouncilStateCleaner} from "./coucil-state-cleaner.js";
 
 interface CouncilShutdownHandlersOpts {
     logger: Logger;

@@ -1,6 +1,6 @@
-import {Logger} from "../logger.mjs";
-import {State} from "../state-handler.mjs";
-import {Ticker} from "../ticker.mjs";
+import {Logger} from "../logger.js";
+import {State} from "../state-handler.js";
+import {Ticker} from "../ticker.js";
 
 export class CouncilStateCleaner extends Ticker {
 

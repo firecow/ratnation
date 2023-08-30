@@ -1,8 +1,8 @@
 import {expect, test} from "@jest/globals";
-import {TraefikTransform} from "../src/stream/traefik-transform.mjs";
+import {TraefikTransform} from "../src/stream/traefik-transform.js";
 import {pipeline} from "stream/promises";
 import {Readable} from "stream";
-import {streamToString} from "../src/utils.mjs";
+import {streamToString} from "../src/utils.js";
 
 test("Transforms traefik output to ECS ndjson", async () => {
     const readable = new Readable();

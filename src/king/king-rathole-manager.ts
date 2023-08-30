@@ -1,10 +1,10 @@
 import delay from "delay";
 import fs from "fs";
-import {ProcessManager} from "../process-manager.mjs";
-import {StateService} from "../state-handler.mjs";
-import {KingRatholeConfig} from "./king-config.mjs";
-import {KingContext} from "./king.mjs";
-import {RatholeTransform} from "../stream/rathole-transform.mjs";
+import {ProcessManager} from "../process-manager.js";
+import {StateService} from "../state-handler.js";
+import {KingRatholeConfig} from "./king-config.js";
+import {KingContext} from "./king.js";
+import {RatholeTransform} from "../stream/rathole-transform.js";
 
 export class KingRatholeManager extends ProcessManager {
 
