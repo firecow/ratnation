@@ -16,7 +16,7 @@ Controlplane application starting rathole servers, must be reachable for all rat
 Dataplane application managing rathole clients and traefik proxies, can be completely isolated
 
 ### encryption
-Since reverse tunnel and proxy encryption isn't implemented yet, it's highly recommended that network traffic encryption is handled via other mechanisms (eg. [Nebula](https://github.com/slackhq/nebula) or VPN), unless you are absolutely sure your traffic will stay in-house
+Since reverse tunnel and proxy encryption isn't implemented yet, it's highly recommended that network traffic encryption is handled via other mechanisms (e.g. [Nebula](https://github.com/slackhq/nebula) or VPN), unless you are absolutely sure your traffic will stay in-house
 
 
 ## Quickstart
