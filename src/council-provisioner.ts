@@ -1,6 +1,6 @@
 import assert from "assert";
-import {Logger} from "../logger.js";
-import {State, StateService} from "../state-handler.js";
+import {Logger} from "./logger.js";
+import {State, StateService} from "./state-handler.js";
 
 export class CouncilProvisioner {
 

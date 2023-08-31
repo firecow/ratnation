@@ -1,6 +1,6 @@
 import {describe, expect, test} from "@jest/globals";
 import request from "supertest";
-import createServer from "../src/council/council-server.js";
+import createServer from "../src/council-server.js";
 
 test("GET /state", async () => {
     const server = createServer().httpServer;

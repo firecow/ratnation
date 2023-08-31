@@ -1,38 +1,19 @@
 import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.js";
-import {State, StateHandler} from "../state-handler.js";
+import {StateHandler} from "../state-handler.js";
 import {portsReachable} from "../utils.js";
-import {KingConfig} from "./king-config.js";
-import {KingRatholeManager} from "./king-rathole-manager.js";
-import {initKingShutdownHandlers} from "./king-shutdown.js";
-import {KingSyncer} from "./king-syncer.js";
+import {KingConfig} from "../configs/king-config.js";
+import {KingRatholeManager} from "../managers/king-rathole-manager.js";
+import {initKingShutdownHandlers} from "../shutdown/king-shutdown.js";
+import {KingSyncer} from "../tickers/king-syncer.js";
+import {KingContext} from "../contexts/king-context.js";
 
 export interface KingArguments {
     "council-host": string;
     "rathole": string[];
     "host": string;
     "location": string;
-}
-
-export class KingContext {
-    logger: Logger;
-    config: KingConfig;
-    state: State;
-    readyServiceIds: string[];
-    shuttingDown: boolean;
-    councilHost: string;
-    host: string;
-
-    constructor (logger: Logger, config: KingConfig, args: KingArguments) {
-        this.logger = logger;
-        this.config = config;
-        this.state = {services: [], kings: [], lings: [], revision: 0};
-        this.readyServiceIds = [];
-        this.shuttingDown = false;
-        this.host = args["host"];
-        this.councilHost = args["council-host"];
-    }
 }
 
 export const command = "king";

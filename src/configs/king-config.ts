@@ -1,5 +1,5 @@
 import assert from "assert";
-import {KingArguments} from "./king-cmd.js";
+import {KingArguments} from "../cmds/king-cmd.js";
 
 export interface KingRatholeConfig {
     ports: string;

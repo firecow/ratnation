@@ -1,8 +1,8 @@
 import delay from "delay";
 import {StateHandler} from "../state-handler.js";
-import {KingRatholeManager} from "./king-rathole-manager.js";
-import {KingSyncer} from "./king-syncer.js";
-import {KingContext} from "./king-cmd.js";
+import {KingRatholeManager} from "../managers/king-rathole-manager.js";
+import {KingSyncer} from "../tickers/king-syncer.js";
+import {KingContext} from "../contexts/king-context.js";
 
 interface KingShutdownHandlersOpts {
     context: KingContext;

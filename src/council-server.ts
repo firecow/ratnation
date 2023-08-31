@@ -1,14 +1,14 @@
 import {AssertionError} from "assert";
 import findmyway from "find-my-way";
 import http, {IncomingMessage, ServerResponse} from "http";
-import {Logger} from "../logger.js";
-import {State} from "../state-handler.js";
-import {CouncilStateCleaner} from "./coucil-state-cleaner.js";
+import {Logger} from "./logger.js";
+import {State} from "./state-handler.js";
+import {CouncilStateCleaner} from "./tickers/coucil-state-cleaner.js";
 import {CouncilProvisioner} from "./council-provisioner.js";
-import getState from "./council-route-get-state.js";
-import putKing from "./council-route-put-king.js";
-import putLing from "./council-route-put-ling.js";
-import {to} from "../utils.js";
+import getState from "./routes/council-route-get-state.js";
+import putKing from "./routes/council-route-put-king.js";
+import putLing from "./routes/council-route-put-ling.js";
+import {to} from "./utils.js";
 import {Server as SocketIOServer} from "socket.io";
 
 export interface RouteRes { end: (str: string) => void; setHeader: (key: string, val: string) => void}

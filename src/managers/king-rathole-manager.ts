@@ -2,8 +2,8 @@ import delay from "delay";
 import fs from "fs";
 import {ProcessManager} from "../process-manager.js";
 import {StateService} from "../state-handler.js";
-import {KingRatholeConfig} from "./king-config.js";
-import {KingContext} from "./king-cmd.js";
+import {KingRatholeConfig} from "../configs/king-config.js";
+import {KingContext} from "../contexts/king-context.js";
 import {RatholeTransform} from "../stream/rathole-transform.js";
 
 export class KingRatholeManager extends ProcessManager {
@@ -51,7 +51,7 @@ export class KingRatholeManager extends ProcessManager {
         }
 
         const ratholeFile = `rathole-server-${bindPort}.toml`;
-        fs.writeFileSync(`src/king/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
+        fs.writeFileSync(`src/managers/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
         return ratholeFile;
     }
 
@@ -69,7 +69,7 @@ export class KingRatholeManager extends ProcessManager {
             key: `${bindPort}`,
             file: "rathole",
             args: ["--server", ratholeFile],
-            options: {cwd: "src/king", env: {RUST_LOG: "warn"}},
+            options: {cwd: "src/managers", env: {RUST_LOG: "warn"}},
             initTransform () {
                 return new RatholeTransform();
             },

@@ -2,8 +2,8 @@ import assert from "assert";
 import fs from "fs";
 import {ProcessManager} from "../process-manager.js";
 import {StateService} from "../state-handler.js";
-import {LingConfig} from "./ling-config.js";
-import {LingContext} from "./ling-cmd.js";
+import {LingConfig} from "../configs/ling-config.js";
+import {LingContext} from "../contexts/ling-context.js";
 import {RatholeTransform} from "../stream/rathole-transform.js";
 
 export class LingRatholeManager extends ProcessManager {
@@ -46,7 +46,7 @@ export class LingRatholeManager extends ProcessManager {
         }
 
         const ratholeFile = `rathole-client-${lingId.replace(/:/g, "-")}.toml`;
-        fs.writeFileSync(`src/ling/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
+        fs.writeFileSync(`src/managers/${ratholeFile}`, `${lines.join("\n")}\n`, "utf8");
         return ratholeFile;
     }
 
@@ -64,7 +64,7 @@ export class LingRatholeManager extends ProcessManager {
                 key: kingBindAddr,
                 file: "rathole",
                 args: ["--client", ratholeFile],
-                options: {cwd: "src/ling/", env: {RUST_LOG: "warn"}},
+                options: {cwd: "src/managers/", env: {RUST_LOG: "warn"}},
                 initTransform () {
                     return new RatholeTransform();
                 },

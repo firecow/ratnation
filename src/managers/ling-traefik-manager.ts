@@ -1,8 +1,8 @@
 import fs from "fs";
 import {ProcessManager} from "../process-manager.js";
 import {StateService} from "../state-handler.js";
-import {LingProxyConfig} from "./ling-config.js";
-import {LingContext} from "./ling-cmd.js";
+import {LingProxyConfig} from "../configs/ling-config.js";
+import {LingContext} from "../contexts/ling-context.js";
 import {TraefikTransform} from "../stream/traefik-transform.js";
 
 export class LingTraefikManager extends ProcessManager {
@@ -48,7 +48,7 @@ export class LingTraefikManager extends ProcessManager {
         }
 
         const traefikFile = `traefik-${bindPort}.toml`;
-        fs.writeFileSync(`src/ling/${traefikFile}`, `${lines.join("\n")}\n`, "utf8");
+        fs.writeFileSync(`src/managers/${traefikFile}`, `${lines.join("\n")}\n`, "utf8");
         return traefikFile;
     }
 
@@ -65,7 +65,7 @@ export class LingTraefikManager extends ProcessManager {
             key: `${bindPort}`,
             file: "traefik",
             args: [`--entrypoints.tcp.address=:${bindPort}/tcp`, `--providers.file.filename=${traefikFile}`, "--providers.file.watch=true", "--log.level=error"],
-            options: {cwd: "src/ling"},
+            options: {cwd: "src/managers"},
             initTransform () {
                 return new TraefikTransform();
             },

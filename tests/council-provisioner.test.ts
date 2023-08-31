@@ -1,5 +1,5 @@
 import {beforeEach, expect, jest, test} from "@jest/globals";
-import {CouncilProvisioner} from "../src/council/council-provisioner.js";
+import {CouncilProvisioner} from "../src/council-provisioner.js";
 import {Logger} from "../src/logger.js";
 import {State} from "../src/state-handler.js";
 

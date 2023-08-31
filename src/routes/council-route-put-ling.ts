@@ -1,6 +1,6 @@
 import assert from "assert";
 import crypto from "crypto";
-import {RouteCtx} from "./council-server.js";
+import {RouteCtx} from "../council-server.js";
 import {streamToString} from "../utils.js";
 
 export default async function ({req, res, state, provisioner}: RouteCtx) {

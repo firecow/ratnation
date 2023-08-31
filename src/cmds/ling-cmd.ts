@@ -1,40 +1,20 @@
-import crypto from "crypto";
 import waitFor from "p-wait-for";
 import {ArgumentsCamelCase, Argv} from "yargs";
 import {Logger} from "../logger.js";
-import {State, StateHandler} from "../state-handler.js";
+import {StateHandler} from "../state-handler.js";
 import {portsReachable} from "../utils.js";
-import {LingConfig} from "./ling-config.js";
-import {LingRatholeManager} from "./ling-rathole-manager.js";
-import {initLingShutdownHandlers} from "./ling-shutdown.js";
-import {LingSyncer} from "./ling-syncer.js";
-import {LingTraefikManager} from "./ling-traefik-manager.js";
+import {LingConfig} from "../configs/ling-config.js";
+import {LingRatholeManager} from "../managers/ling-rathole-manager.js";
+import {initLingShutdownHandlers} from "../shutdown/ling-shutdown.js";
+import {LingSyncer} from "../tickers/ling-syncer.js";
+import {LingTraefikManager} from "../managers/ling-traefik-manager.js";
+import {LingContext} from "../contexts/ling-context.js";
 
 export interface LingArguments {
     "council-host": string;
     "ling-id": string;
     "proxy": string[];
     "rathole": string[];
-}
-
-export class LingContext {
-    logger: Logger;
-    config: LingConfig;
-    state: State;
-    readyServiceIds: string[];
-    shuttingDown: boolean;
-    councilHost: string;
-    lingId: string;
-
-    constructor (logger: Logger, config: LingConfig, args: LingArguments) {
-        this.logger = logger;
-        this.config = config;
-        this.state = {services: [], kings: [], lings: [], revision: 0};
-        this.readyServiceIds = [];
-        this.shuttingDown = false;
-        this.councilHost = args["council-host"];
-        this.lingId = args["ling-id"] ?? crypto.randomUUID();
-    }
 }
 
 export const command = "ling";

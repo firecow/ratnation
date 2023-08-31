@@ -1,5 +1,5 @@
 import assert from "assert";
-import {RouteCtx} from "./council-server.js";
+import {RouteCtx} from "../council-server.js";
 import {streamToString} from "../utils.js";
 
 export default async function ({req, res, state, provisioner}: RouteCtx) {
@@ -13,7 +13,7 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
 
     for (const serviceId of data["ready_service_ids"]) {
         const service = state.services.find(s => s["service_id"] === serviceId);
-        assert(service != null, "service is undefined or null");
+        assert(service != null, `${serviceId} cannot be found in state.services`);
         if (!service.king_ready) {
             service.king_ready = true;
             state.revision++;

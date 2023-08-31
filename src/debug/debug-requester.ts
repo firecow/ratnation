@@ -30,7 +30,7 @@ async function tick (logger: Logger, args: RequestArguments) {
     });
 }
 
-export const command = "requester";
+export const command = "debug requester";
 export const description = "Start calling http requests and print status code";
 
 export function handler (args: ArgumentsCamelCase) {
