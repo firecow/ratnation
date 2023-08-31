@@ -14,6 +14,12 @@ export class Ticker {
         return this._tick();
     }
 
+    async forceTick () {
+        clearTimeout(this.timer);
+        await this.tick();
+        this.start();
+    }
+
     start () {
         const now = Date.now();
         void this.tick().then(() => {

@@ -2,7 +2,7 @@ import assert from "assert";
 import {RouteCtx} from "../council-server.js";
 import {streamToString} from "../utils.js";
 
-export default async function ({req, res, state, provisioner}: RouteCtx) {
+export default async function ({req, res, state, provisioner, socketIo}: RouteCtx) {
     const body = await streamToString(req);
     assert(body.length > 0, "no json data received");
     const data = JSON.parse(`${body}`);
@@ -17,7 +17,8 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
         if (!service.king_ready) {
             service.king_ready = true;
             state.revision++;
-            provisioner.provision();
+            provisioner.provision(state);
+            socketIo.sockets.emit("state-changed");
         }
     }
 
@@ -27,7 +28,8 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
             if (king.shutting_down !== data["shutting_down"]) {
                 king.shutting_down = data["shutting_down"];
                 state.revision++;
-                provisioner.provision();
+                provisioner.provision(state);
+                socketIo.sockets.emit("state-changed");
             }
             king.beat = Date.now();
             continue;
@@ -41,7 +43,8 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
             shutting_down: false,
         });
         state.revision++;
-        provisioner.provision();
+        provisioner.provision(state);
+        socketIo.sockets.emit("state-changed");
     }
 
     res.setHeader("Content-Type", "text/plain; charset=utf-8");

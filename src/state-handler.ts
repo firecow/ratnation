@@ -2,6 +2,7 @@ import got from "got";
 import {Logger} from "./logger.js";
 import {Ticker} from "./ticker.js";
 import {to} from "./utils.js";
+import {io} from "socket.io-client";
 
 export interface StateKing {
     bind_port: number;
@@ -51,17 +52,35 @@ export class StateHandler extends Ticker {
     private readonly logger;
     private readonly stateChanged;
     private readonly councilHost;
+    private readonly socketIo;
     private state: State | null = null;
 
     constructor ({logger, councilHost, stateChanged}: StateHandlerOpts) {
-        super({interval: 500, tick: async () => await this.fetchState()});
+        super({interval: 5000, tick: async () => await this.fetchState()});
         this.stateChanged = stateChanged;
         this.councilHost = councilHost;
         this.logger = logger;
+
+        this.socketIo = io(councilHost);
+        this.socketIo.on("connect", () => {
+            logger.info("socket.io connected");
+        });
+        this.socketIo.on("disconnected", () => {
+            logger.info("socket.io disconnected");
+        });
+        this.socketIo.on("state-changed", async () => {
+            logger.info("State changed event received force ticking");
+            await this.forceTick();
+        });
     }
 
     hasState () {
         return this.state !== null;
+    }
+
+    stop () {
+        super.stop();
+        this.socketIo.disconnect();
     }
 
     async fetchState () {

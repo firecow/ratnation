@@ -52,7 +52,7 @@ export class LingRatholeManager extends ProcessManager {
 
     async stateChanged () {
         const config = this.context.config;
-        const lingId = this.context.lingId;
+        const lingId = config.lingId;
         const services = this.getServices({config, lingId});
 
         const kingBindAddrs = services.map(s => `${s.host}:${s.bind_port}`);

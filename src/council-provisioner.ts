@@ -5,16 +5,13 @@ import {State, StateService} from "./state-handler.js";
 export class CouncilProvisioner {
 
     private readonly logger: Logger;
-    private readonly state;
 
-    constructor ({state, logger}: {state: State; logger: Logger}) {
+    constructor ({logger}: {logger: Logger}) {
         this.logger = logger;
-        this.state = state;
     }
 
-    availableKingPorts () {
-        const state = this.state;
-        const kings = this.state.kings.filter(k => !k.shutting_down);
+    availableKingPorts (state: State) {
+        const kings = state.kings.filter(k => !k.shutting_down);
 
         const kingPorts = [];
 
@@ -35,10 +32,10 @@ export class CouncilProvisioner {
         return kingPorts;
     }
 
-    provisionService (service: StateService) {
+    provisionService (state: State, service: StateService) {
         const logger = this.logger;
 
-        const found = this.availableKingPorts().shift();
+        const found = this.availableKingPorts(state).shift();
         if (!found) {
             return logger.error(`No available remote_port found on any kings for ${service.service_id}`, {
                 "service.type": "ratcouncil",
@@ -52,17 +49,17 @@ export class CouncilProvisioner {
         service.remote_port = remotePort;
         service.bind_port = king.bind_port;
 
-        this.state.revision++;
+        state.revision++;
 
         logger.info(`Provisioned ${service.name} to ${king.host}:${service.bind_port}, exposed on ${king.host}:${service.remote_port}`, {
             "service.type": "ratcouncil",
         });
     }
 
-    provision () {
-        const unprovisionedServices = this.state.services.filter(s => s.bind_port === null);
+    provision (state: State) {
+        const unprovisionedServices = state.services.filter(s => s.bind_port === null);
         unprovisionedServices.forEach(unprovisionedService => {
-            this.provisionService(unprovisionedService);
+            this.provisionService(state, unprovisionedService);
         });
     }
 }

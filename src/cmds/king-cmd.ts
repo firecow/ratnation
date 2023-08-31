@@ -10,10 +10,10 @@ import {KingSyncer} from "../tickers/king-syncer.js";
 import {KingContext} from "../contexts/king-context.js";
 
 export interface KingArguments {
-    "council-host": string;
-    "rathole": string[];
-    "host": string;
-    "location": string;
+    councilHost: string;
+    rathole: string[];
+    host: string;
+    location: string;
 }
 
 export const command = "king";
@@ -23,11 +23,12 @@ export async function handler (args: ArgumentsCamelCase) {
     const logger = new Logger();
     const config = new KingConfig(args as ArgumentsCamelCase<KingArguments>);
     await portsReachable(config.ratholes);
-    const context = new KingContext(logger, config, args as ArgumentsCamelCase<KingArguments>);
+    const context = new KingContext(logger, config);
     const ratholeManager = new KingRatholeManager(context);
     const syncer = new KingSyncer(context);
     const stateHandler = new StateHandler({
         ...context,
+        councilHost: config.councilHost,
         stateChanged: async (state) => {
             context.state = state;
             await ratholeManager.stateChanged();

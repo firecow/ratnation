@@ -1,4 +1,4 @@
-import {beforeEach, expect, jest, test} from "@jest/globals";
+import {afterEach, beforeEach, expect, jest, test} from "@jest/globals";
 import {State, StateHandler} from "../src/state-handler.js";
 import {Logger} from "../src/logger.js";
 
@@ -12,6 +12,9 @@ beforeEach(() => {
     stateHandler = new StateHandler({logger, councilHost: "ratcouncil.example.io", stateChanged: stateChangedMock});
 });
 
+afterEach(() => {
+    stateHandler.stop();
+});
 
 test("Handles bad status code", async () => {
     await stateHandler.fetchState();

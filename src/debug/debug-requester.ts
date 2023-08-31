@@ -19,18 +19,18 @@ async function tick (logger: Logger, args: RequestArguments) {
         });
     }
     if (res.statusCode !== 200) {
-        return logger.error("Response not 200", {
+        return logger.error("Request failed", {
             "http.response.status_code": res?.statusCode,
-            "service.type": "requester",
+            "service.type": "debug-requester",
         });
     }
-    logger.info("Request success", {
+    logger.info("Request successful", {
         "http.response.status_code": res?.statusCode,
-        "service.type": "requester",
+        "service.type": "debug-requester",
     });
 }
 
-export const command = "debug requester";
+export const command = "debug-requester";
 export const description = "Start calling http requests and print status code";
 
 export function handler (args: ArgumentsCamelCase) {
@@ -48,7 +48,6 @@ export function builder (yargs: Argv) {
     yargs.options("url", {
         type: "string",
         description: "URL to request",
-        default: "http://localhost:2183",
     });
     yargs.options("interval", {
         type: "number",

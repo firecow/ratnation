@@ -11,10 +11,10 @@ import {LingTraefikManager} from "../managers/ling-traefik-manager.js";
 import {LingContext} from "../contexts/ling-context.js";
 
 export interface LingArguments {
-    "council-host": string;
-    "ling-id": string;
-    "proxy": string[];
-    "rathole": string[];
+    councilHost: string;
+    lingId: string;
+    proxy: string[];
+    rathole: string[];
 }
 
 export const command = "ling";
@@ -24,12 +24,13 @@ export async function handler (args: ArgumentsCamelCase) {
     const logger = new Logger();
     const config = new LingConfig(args as ArgumentsCamelCase<LingArguments>);
     await portsReachable(config.proxyMap.values());
-    const context = new LingContext(logger, config, args as ArgumentsCamelCase<LingArguments>);
+    const context = new LingContext(logger, config);
     const syncer = new LingSyncer(context);
     const traefikManager = new LingTraefikManager(context);
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
         ...context,
+        councilHost: config.councilHost,
         stateChanged: async (state) => {
             context.state = state;
 

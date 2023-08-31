@@ -9,15 +9,17 @@ export class KingSyncer extends Ticker {
 
     constructor (context: KingContext) {
         super({interval: 1000, tick: async () => this.sync()});
+
         this.context = context;
     }
 
     private async sync () {
+        const config = this.context.config;
         const logger = this.context.logger;
-        const [err, response] = await to(got(`${this.context.councilHost}/king`, {
+        const [err, response] = await to(got(`${config.councilHost}/king`, {
             method: "PUT",
             json: {
-                host: this.context.host,
+                host: config.host,
                 shutting_down: this.context.shuttingDown,
                 ratholes: this.context.config.ratholes,
                 ready_service_ids: this.context.readyServiceIds,

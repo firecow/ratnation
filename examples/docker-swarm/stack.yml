@@ -71,7 +71,7 @@ services:
       --council-host="http://172.17.0.1:8080"
       --proxy="name=alpha bind_port=2184"
   # This requester service should be able to reach echoserver-alpha through the ratling-beta on port 2182
-  requester-beta:
+  debug-requester-beta:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
-    command: requester --url=http://ratling-beta:2184
+    command: ["debug-requester", "--url=http://ratling-beta:2184"]
     networks: [beta]

@@ -31,9 +31,9 @@ test("Find available port on king", () => {
         lings: [{ling_id: "some_ling_id", beat: 0, shutting_down: false}],
         revision: 0,
     };
-    provisioner = new CouncilProvisioner({state, logger});
+    provisioner = new CouncilProvisioner({logger});
 
-    const kingPorts = provisioner.availableKingPorts();
+    const kingPorts = provisioner.availableKingPorts(state);
     expect(kingPorts).toEqual([
         {
             "king": {

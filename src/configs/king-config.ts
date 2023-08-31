@@ -10,9 +10,13 @@ export class KingConfig {
 
     ratholes: KingRatholeConfig[] = [];
     location: string;
+    host: string;
+    councilHost: string;
 
     constructor (args: KingArguments) {
         this.location = args.location;
+        this.host = args.host;
+        this.councilHost = args.councilHost;
 
         for (const ratholeArg of args.rathole ?? []) {
             const pairs: {[key: string]: string} = {};

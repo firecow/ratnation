@@ -57,7 +57,7 @@ export class KingRatholeManager extends ProcessManager {
 
     private async each (ratholeCnf: KingRatholeConfig) {
         const bindPort = ratholeCnf.bind_port;
-        const host = this.context.host;
+        const host = this.context.config.host;
         const services = this.getServices({bindPort, host});
         if (services.length === 0) {
             await this.killProcess(`${bindPort}`, "SIGTERM");

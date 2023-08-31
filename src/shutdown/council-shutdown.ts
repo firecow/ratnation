@@ -1,4 +1,3 @@
-import delay from "delay";
 import {Server} from "http";
 import {Logger} from "../logger.js";
 import {CouncilStateCleaner} from "../tickers/coucil-state-cleaner.js";
@@ -12,11 +11,10 @@ interface CouncilShutdownHandlersOpts {
 let shuttingDown = false;
 
 export function initCouncilShutdownHandlers ({logger, httpServer, cleaner}: CouncilShutdownHandlersOpts) {
-    const listener = async () => {
+    const listener = () => {
         if (shuttingDown) return;
         shuttingDown = true;
         logger.info("Shutdown sequence initiated", {"service.type": "ratcouncil"});
-        await delay(5000);
         cleaner.stop();
         httpServer.close();
     };

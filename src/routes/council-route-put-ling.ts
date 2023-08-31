@@ -3,7 +3,7 @@ import crypto from "crypto";
 import {RouteCtx} from "../council-server.js";
 import {streamToString} from "../utils.js";
 
-export default async function ({req, res, state, provisioner}: RouteCtx) {
+export default async function ({req, res, state, provisioner, socketIo}: RouteCtx) {
     const body = await streamToString(req);
     assert(body.length > 0, "no json data received");
     const data = JSON.parse(`${body}`);
@@ -18,7 +18,8 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
         if (!service.ling_ready) {
             service.ling_ready = true;
             state.revision++;
-            provisioner.provision();
+            provisioner.provision(state);
+            socketIo.sockets.emit("state-changed");
         }
     }
 
@@ -33,7 +34,8 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
         if (ling.shutting_down !== data["shutting_down"]) {
             ling.shutting_down = data["shutting_down"];
             state.revision++;
-            provisioner.provision();
+            provisioner.provision(state);
+            socketIo.sockets.emit("state-changed");
         }
 
         const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_id"] === data["ling_id"]);
@@ -57,7 +59,9 @@ export default async function ({req, res, state, provisioner}: RouteCtx) {
             king_ready: false,
         });
         state.revision++;
-        provisioner.provision();
+        provisioner.provision(state);
+        socketIo.sockets.emit("state-changed");
+
         res.setHeader("Content-Type", "text/plain; charset=utf-8");
         res.end("ok");
     }

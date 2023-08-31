@@ -1,4 +1,5 @@
 import assert from "assert";
+import crypto from "crypto";
 import {LingArguments} from "../cmds/ling-cmd.js";
 
 export interface LingRatholeConfig {
@@ -13,10 +14,15 @@ export interface LingProxyConfig {
 
 export class LingConfig {
 
-    ratholeMap = new Map<string, LingRatholeConfig>();
-    proxyMap = new Map<string, LingProxyConfig>();
+    readonly ratholeMap = new Map<string, LingRatholeConfig>();
+    readonly proxyMap = new Map<string, LingProxyConfig>();
+    readonly councilHost: string;
+    readonly lingId: string;
 
     constructor (args: LingArguments) {
+        this.councilHost = args.councilHost;
+        this.lingId = args.lingId ?? crypto.randomUUID();
+
         for (const proxyArg of args.proxy ?? []) {
             const pairs: {[key: string]: string} = {};
             for (const pair of proxyArg.split(" ")) {
