@@ -3,7 +3,7 @@ import {StateHandler} from "../state-handler.js";
 import {LingRatholeManager} from "./ling-rathole-manager.js";
 import {LingSyncer} from "./ling-syncer.js";
 import {LingTraefikManager} from "./ling-traefik-manager.js";
-import {LingContext} from "./ling.js";
+import {LingContext} from "./ling-cmd.js";
 
 interface LingShutdownHandlersOpts {
     context: LingContext;

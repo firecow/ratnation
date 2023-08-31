@@ -5,9 +5,9 @@ import {Logger} from "../logger.js";
 import {State} from "../state-handler.js";
 import {CouncilStateCleaner} from "./coucil-state-cleaner.js";
 import {CouncilProvisioner} from "./council-provisioner.js";
-import getState from "./get-state.js";
-import putKing from "./put-king.js";
-import putLing from "./put-ling.js";
+import getState from "./council-route-get-state.js";
+import putKing from "./council-route-put-king.js";
+import putLing from "./council-route-put-ling.js";
 import {to} from "../utils.js";
 import {Server as SocketIOServer} from "socket.io";
 

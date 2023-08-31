@@ -3,7 +3,7 @@ import fs from "fs";
 import {ProcessManager} from "../process-manager.js";
 import {StateService} from "../state-handler.js";
 import {KingRatholeConfig} from "./king-config.js";
-import {KingContext} from "./king.js";
+import {KingContext} from "./king-cmd.js";
 import {RatholeTransform} from "../stream/rathole-transform.js";
 
 export class KingRatholeManager extends ProcessManager {

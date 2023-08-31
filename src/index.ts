@@ -2,10 +2,10 @@ import "source-map-support/register.js";
 import assert from "assert";
 import yargs from "yargs";
 import chalk from "chalk-template";
-import * as councilCmd from "./council/council.js";
+import * as councilCmd from "./council/council-cmd.js";
 import * as requesterCmd from "./debug/requester.js";
-import * as kingCmd from "./king/king.js";
-import * as lingCmd from "./ling/ling.js";
+import * as kingCmd from "./king/king-cmd.js";
+import * as lingCmd from "./ling/ling-cmd.js";
 
 process.on("uncaughtException", (err) => {
     if (err instanceof assert.AssertionError) {

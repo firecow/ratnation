@@ -3,7 +3,7 @@ import fs from "fs";
 import {ProcessManager} from "../process-manager.js";
 import {StateService} from "../state-handler.js";
 import {LingConfig} from "./ling-config.js";
-import {LingContext} from "./ling.js";
+import {LingContext} from "./ling-cmd.js";
 import {RatholeTransform} from "../stream/rathole-transform.js";
 
 export class LingRatholeManager extends ProcessManager {

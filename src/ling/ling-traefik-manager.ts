@@ -2,7 +2,7 @@ import fs from "fs";
 import {ProcessManager} from "../process-manager.js";
 import {StateService} from "../state-handler.js";
 import {LingProxyConfig} from "./ling-config.js";
-import {LingContext} from "./ling.js";
+import {LingContext} from "./ling-cmd.js";
 import {TraefikTransform} from "../stream/traefik-transform.js";
 
 export class LingTraefikManager extends ProcessManager {

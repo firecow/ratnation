@@ -2,7 +2,7 @@ import delay from "delay";
 import {StateHandler} from "../state-handler.js";
 import {KingRatholeManager} from "./king-rathole-manager.js";
 import {KingSyncer} from "./king-syncer.js";
-import {KingContext} from "./king.js";
+import {KingContext} from "./king-cmd.js";
 
 interface KingShutdownHandlersOpts {
     context: KingContext;

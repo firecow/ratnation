@@ -1,5 +1,5 @@
 import assert from "assert";
-import {LingArguments} from "./ling.js";
+import {LingArguments} from "./ling-cmd.js";
 
 export interface LingRatholeConfig {
     name: string;

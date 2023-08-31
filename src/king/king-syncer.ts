@@ -1,6 +1,6 @@
 import got from "got";
 import {Ticker} from "../ticker.js";
-import {KingContext} from "./king.js";
+import {KingContext} from "./king-cmd.js";
 import {to} from "../utils.js";
 
 export class KingSyncer extends Ticker {

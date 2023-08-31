@@ -1,6 +1,6 @@
 import got from "got";
 import {Ticker} from "../ticker.js";
-import {LingContext} from "./ling.js";
+import {LingContext} from "./ling-cmd.js";
 import {to} from "../utils.js";
 
 export class LingSyncer extends Ticker {
