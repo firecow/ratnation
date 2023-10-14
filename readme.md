@@ -26,7 +26,7 @@ Install `docker` and call `docker swarm init`
 See [stack.yml](./examples/docker-swarm/stack.yml) for deployment configuration
 
 ```bash
-./deploy_stack.sh
+./example_deploy.sh
 ```
 
 ## Development

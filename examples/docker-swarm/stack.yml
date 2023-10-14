@@ -49,7 +49,7 @@ services:
       - { target: 5003, published: 5003, protocol: tcp, mode: host }
       - { target: 5004, published: 5004, protocol: tcp, mode: host }
 
-  # Alpha stack/pod
+  # <editor-fold desc="Alpha services">
   ratling-alpha:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [alpha]
@@ -57,12 +57,15 @@ services:
       ling
       --council-host="http://172.17.0.1:8080"
       --rathole="name=alpha local_addr=echoserver-alpha:8080"
+    deploy: { update_config: { order: start-first, parallelism: 0 } }
   echoserver-alpha:
     hostname: echoserver-alpha
     image: jmalloc/echo-server
     networks: [alpha]
+    deploy: { update_config: { order: start-first, parallelism: 0 } }
+  # </editor-fold>
 
-  # Beta stack/pod
+  # <editor-fold desc="Beta services">
   ratling-beta:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [beta]
@@ -70,8 +73,11 @@ services:
       ling
       --council-host="http://172.17.0.1:8080"
       --proxy="name=alpha bind_port=2184"
+    deploy: { update_config: { order: start-first, parallelism: 0 } }
   # This requester service should be able to reach echoserver-alpha through the ratling-beta on port 2182
   debug-requester-beta:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     command: ["debug-requester", "--url=http://ratling-beta:2184"]
     networks: [beta]
+    deploy: { update_config: { order: start-first, parallelism: 0 } }
+  # </editor-fold>
