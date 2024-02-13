@@ -1,4 +1,4 @@
-FROM traefik:v2.10.4 AS traefik
+FROM traefik:2.11.0 AS traefik
 
 FROM alpine:3.18.4 AS rathole
 RUN wget -O rathole.zip https://github.com/rapiz1/rathole/releases/download/v0.4.8/rathole-x86_64-unknown-linux-musl.zip && unzip rathole.zip
