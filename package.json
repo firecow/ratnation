@@ -11,7 +11,7 @@
     "delay": "6.x",
     "execa": "8.x",
     "find-my-way": "8.x",
-    "got": "13.x",
+    "got": "14.x",
     "is-port-reachable": "4.x",
     "p-wait-for": "5.x",
     "socket.io": "^4.7.2",
