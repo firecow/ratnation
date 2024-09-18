@@ -9,7 +9,7 @@
   "dependencies": {
     "chalk-template": "1.x",
     "delay": "6.x",
-    "execa": "8.x",
+    "execa": "9.x",
     "find-my-way": "9.x",
     "got": "14.x",
     "is-port-reachable": "4.x",
