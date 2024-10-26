@@ -29,7 +29,7 @@
     "@typescript-eslint/parser": "7.x",
     "eslint": "8.x",
     "jest": "29.x",
-    "supertest": "6.x",
+    "supertest": "7.x",
     "ts-jest": "29.x",
     "typescript": "5.x",
     "wait-for-expect": "3.x"
