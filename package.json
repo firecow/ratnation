@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@jest/globals": "29.x",
-    "@types/node": "20.x",
+    "@types/node": "22.x",
     "@types/split2": "4.x",
     "@types/supertest": "6.x",
     "@typescript-eslint/eslint-plugin": "7.x",
