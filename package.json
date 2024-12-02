@@ -27,7 +27,7 @@
     "@types/supertest": "6.x",
     "@typescript-eslint/eslint-plugin": "7.x",
     "@typescript-eslint/parser": "7.x",
-    "eslint": "8.x",
+    "eslint": "9.x",
     "jest": "29.x",
     "supertest": "7.x",
     "ts-jest": "29.x",
