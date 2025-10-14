@@ -13,7 +13,7 @@
     "find-my-way": "9.x",
     "got": "14.x",
     "is-port-reachable": "4.x",
-    "p-wait-for": "5.x",
+    "p-wait-for": "6.x",
     "socket.io": "^4.7.2",
     "socket.io-client": "^4.7.2",
     "source-map-support": "0.5.x",
