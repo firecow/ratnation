@@ -21,9 +21,14 @@ export function initLingShutdownHandlers ({context, stateHandler, syncer, traefi
         context.shuttingDown = true;
         stateHandler.stop();
         syncer.stop();
-        await syncer.tick().catch(() => logger.error("shutdown sync failed", {"service.type": "ratling"}));
-        // Wait for kings to have noticed the ling shutdown state change.
-        // TODO: We can do better that arbitrary sleep's
+        await syncer.tick().catch(() => {
+            logger.error("shutdown sync failed", {"service.type": "ratling"});
+        });
+
+        /*
+         * Wait for kings to have noticed the ling shutdown state change.
+         * TODO: We can do better that arbitrary sleep's
+         */
         await delay(750);
         await Promise.allSettled([
             ratholeManager.killProcesses(signal),

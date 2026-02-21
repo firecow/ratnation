@@ -1,4 +1,4 @@
-import got from "got";
+import got, {RequestError} from "got";
 import {Ticker} from "../ticker.js";
 import {LingContext} from "../contexts/ling-context.js";
 import {to} from "../utils.js";
@@ -26,11 +26,14 @@ export class LingSyncer extends Ticker {
             },
         }));
         if (err || response.statusCode !== 200) {
+            const body = err instanceof RequestError ? String(err.response?.body ?? "") : undefined;
+            const message = body ? body.slice(4096) : err?.message;
             logger.error("Failed to sync with council", {
-                "error.message": err?.response?.body?.slice(4096) ?? err.message,
+                "error.message": message,
                 "error.stack_trace": err?.stack,
                 "service.type": "ratling",
             });
         }
     }
+
 }

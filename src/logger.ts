@@ -2,7 +2,7 @@ type ContextVal = string | number | boolean | null | undefined;
 
 export class Logger {
 
-    info (msg: string, ctx: {[key: string]: ContextVal} = {}) {
+    info (msg: string, ctx: Record<string, ContextVal> = {}) {
         process.stdout.write(JSON.stringify({
             "@timestamp": new Date().toISOString(),
             "log.level": "info",
@@ -11,7 +11,7 @@ export class Logger {
         }) + "\n");
     }
 
-    error (msg: string, ctx: {[key: string]: ContextVal} = {}) {
+    error (msg: string, ctx: Record<string, ContextVal> = {}) {
         process.stderr.write(JSON.stringify({
             "@timestamp": new Date().toISOString(),
             "log.level": "error",
@@ -19,4 +19,5 @@ export class Logger {
             ...ctx,
         }) + "\n");
     }
+
 }

@@ -19,13 +19,16 @@ export function initKingShutdownHandlers ({context, stateHandler, syncer, rathol
         context.shuttingDown = true;
         stateHandler.stop();
         syncer.stop();
-        await syncer.tick().catch(() => logger.error("shutdown sync failed", {"service.type": "ratking"}));
-        // Wait for lings to have noticed the king shutdown state change.
-        // TODO: We can do better that arbitrary sleep's
+        await syncer.tick().catch(() => {
+            logger.error("shutdown sync failed", {"service.type": "ratking"});
+        });
+
+        /*
+         * Wait for lings to have noticed the king shutdown state change.
+         * TODO: We can do better that arbitrary sleep's
+         */
         await delay(1000);
-        await Promise.allSettled([
-            ratholeManager.killProcesses(signal),
-        ]);
+        await Promise.allSettled([ratholeManager.killProcesses(signal)]);
     };
     process.on("SIGINT", listener);
     process.on("SIGTERM", listener);

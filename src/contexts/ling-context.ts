@@ -3,10 +3,15 @@ import {LingConfig} from "../configs/ling-config.js";
 import {State} from "../state-handler.js";
 
 export class LingContext {
+
     logger: Logger;
+
     config: LingConfig;
+
     state: State;
+
     readyServiceIds: string[];
+
     shuttingDown: boolean;
 
     constructor (logger: Logger, config: LingConfig) {
@@ -16,4 +21,5 @@ export class LingContext {
         this.readyServiceIds = [];
         this.shuttingDown = false;
     }
+
 }

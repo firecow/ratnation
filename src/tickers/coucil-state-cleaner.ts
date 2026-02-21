@@ -6,6 +6,7 @@ import {Server as SocketIoServer} from "socket.io";
 export class CouncilStateCleaner extends Ticker {
 
     private readonly state;
+
     private readonly socketIo: SocketIoServer;
 
     constructor ({state, socketIo}: {state: State; socketIo: SocketIoServer; logger: Logger}) {
@@ -30,8 +31,8 @@ export class CouncilStateCleaner extends Ticker {
         }
 
         for (const [i, s] of this.state.services.entries()) {
-            const king = this.state.kings.find(k => k.host === s.host && k.bind_port === s.bind_port);
-            const ling = this.state.lings.find(l => l.ling_id === s.ling_id);
+            const king = this.state.kings.find((k) => k.host === s.host && k.bind_port === s.bind_port);
+            const ling = this.state.lings.find((l) => l.ling_id === s.ling_id);
             if (king && ling) continue;
             this.state.services.splice(i, 1);
             stateChanged = true;
@@ -44,4 +45,5 @@ export class CouncilStateCleaner extends Ticker {
 
         return Promise.resolve();
     }
+
 }

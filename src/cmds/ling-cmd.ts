@@ -12,9 +12,9 @@ import {LingContext} from "../contexts/ling-context.js";
 
 export interface LingArguments {
     councilHost: string;
-    lingId: string;
-    proxy: string[];
-    rathole: string[];
+    lingId?: string;
+    proxy?: string[];
+    rathole?: string[];
 }
 
 export const command = "ling";
@@ -29,7 +29,7 @@ export async function handler (args: ArgumentsCamelCase) {
     const traefikManager = new LingTraefikManager(context);
     const ratholeManager = new LingRatholeManager(context);
     const stateHandler = new StateHandler({
-        ...context,
+        logger: context.logger,
         councilHost: config.councilHost,
         stateChanged: async (state) => {
             context.state = state;

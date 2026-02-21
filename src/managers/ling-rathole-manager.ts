@@ -11,18 +11,18 @@ export class LingRatholeManager extends ProcessManager {
     private readonly context;
 
     constructor (context: LingContext) {
-        super({...context, serviceType: "ratling"});
+        super({logger: context.logger, serviceType: "ratling"});
         this.context = context;
     }
 
     private getServices ({config, lingId}: {config: LingConfig; lingId: string}): StateService[] {
         const state = this.context.state;
-        return state.services.filter(s => {
-            const king = state.kings.find(k => k.host === s.host && k.bind_port === s.bind_port);
+        return state.services.filter((s) => {
+            const king = state.kings.find((k) => k.host === s.host && k.bind_port === s.bind_port);
             if (king?.shutting_down) {
                 return false;
             }
-            return config.ratholeMap.has(s.name) && s.ling_id === lingId && s.king_ready === true;
+            return config.ratholeMap.has(s.name) && s.ling_id === lingId && s.king_ready;
         });
     }
 
@@ -35,7 +35,7 @@ export class LingRatholeManager extends ProcessManager {
             "[client.services]",
         );
 
-        for (const service of services.filter(s => `${s.host}:${s.bind_port}` === kingBindAddr)) {
+        for (const service of services.filter((s) => `${s.host}:${s.bind_port}` === kingBindAddr)) {
             const ratholeCnf = config.ratholeMap.get(service.name);
             assert(ratholeCnf != null, "ratholeCnf is undefined or null");
             lines.push(
@@ -55,7 +55,7 @@ export class LingRatholeManager extends ProcessManager {
         const lingId = config.lingId;
         const services = this.getServices({config, lingId});
 
-        const kingBindAddrs = services.map(s => `${s.host}:${s.bind_port}`);
+        const kingBindAddrs = services.map((s) => `${s.host}:${s.bind_port}`);
 
         // Ensure rathole process is running and maintain rathole client configuration file
         for (const kingBindAddr of kingBindAddrs) {
@@ -78,8 +78,9 @@ export class LingRatholeManager extends ProcessManager {
             proms.push(this.killProcess(kingBindAddr, "SIGTERM"));
         }
 
-        this.context.readyServiceIds = services.map(s => s["service_id"]);
+        this.context.readyServiceIds = services.map((s) => s.service_id);
 
         await Promise.all(proms);
     }
+
 }

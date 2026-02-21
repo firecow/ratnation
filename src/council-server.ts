@@ -10,7 +10,7 @@ import putLing from "./routes/council-route-put-ling.js";
 import {to} from "./utils.js";
 import {Server as SocketIoServer} from "socket.io";
 
-export interface RouteRes { end: (str: string) => void; setHeader: (key: string, val: string) => void}
+export interface RouteRes {end: (str: string) => void; setHeader: (key: string, val: string) => void}
 export interface RouteCtx {
     logger: Logger;
     req: IncomingMessage;
@@ -34,7 +34,7 @@ export default function createServer ({provisioner, state}: {provisioner: Counci
             } else if (err) {
                 res.setHeader("Content-Type", "text/plain; charset=utf-8");
                 res.statusCode = 500;
-                return res.end(err.stack);
+                return res.end(err.stack ?? err.message);
             }
         };
     }
@@ -51,7 +51,9 @@ export default function createServer ({provisioner, state}: {provisioner: Counci
     router.on("PUT", "/ling", initRoute(putLing));
     router.on("PUT", "/king", initRoute(putKing));
 
-    const httpServer = http.createServer((req, res) => router.lookup(req, res));
+    const httpServer = http.createServer((req, res) => {
+        router.lookup(req, res);
+    });
     const socketIo = new SocketIoServer(httpServer);
 
     socketIo.on("connection", (s) => {

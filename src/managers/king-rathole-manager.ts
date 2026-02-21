@@ -11,19 +11,19 @@ export class KingRatholeManager extends ProcessManager {
     private readonly context;
 
     constructor (context: KingContext) {
-        super({...context, serviceType: "ratking"});
+        super({logger: context.logger, serviceType: "ratking"});
         this.context = context;
     }
 
     private getServices ({bindPort, host}: {bindPort: number; host: string}) {
         const logger = this.logger;
         const state = this.context.state;
-        return state.services.filter(s => {
+        return state.services.filter((s) => {
             if (s.bind_port !== bindPort || s.host !== host) {
                 return false;
             }
 
-            const ling = state.lings.find(l => l.ling_id === s.ling_id);
+            const ling = state.lings.find((l) => l.ling_id === s.ling_id);
             if (!ling) {
                 logger.error(`Ling not found for ${s.name}`, {"service.type": "ratking"});
                 return false;
@@ -81,8 +81,10 @@ export class KingRatholeManager extends ProcessManager {
     async stateChanged () {
         let readyServices: string[] = [];
 
-        // rathole clients may not be closed yet, wait a little.
-        // TODO: We can do better that arbitrary sleep's
+        /*
+         * rathole clients may not be closed yet, wait a little.
+         * TODO: We can do better that arbitrary sleep's
+         */
         await delay(1500);
 
         for (const ratholeCnf of this.context.config.ratholes) {
@@ -90,4 +92,5 @@ export class KingRatholeManager extends ProcessManager {
         }
         this.context.readyServiceIds = readyServices;
     }
+
 }

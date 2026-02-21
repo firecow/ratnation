@@ -17,15 +17,15 @@ process.on("uncaughtException", (err) => {
 });
 
 const terminalWidth = yargs().terminalWidth();
-await yargs(process.argv.slice(2))
-    .command(councilCmd)
-    .command(kingCmd)
-    .command(lingCmd)
-    .command(requesterCmd)
-    .demandCommand()
-    .fail((msg, err) => {
+await yargs(process.argv.slice(2)).
+    command(councilCmd).
+    command(kingCmd).
+    command(lingCmd).
+    command(requesterCmd).
+    demandCommand().
+    fail((msg, err: Error | undefined) => {
         if (!err) throw new assert.AssertionError({message: msg});
-    })
-    .wrap(terminalWidth)
-    .strict(true)
-    .parse();
+    }).
+    wrap(terminalWidth).
+    strict(true).
+    parse();

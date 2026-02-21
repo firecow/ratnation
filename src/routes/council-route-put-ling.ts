@@ -3,17 +3,25 @@ import crypto from "crypto";
 import {RouteCtx} from "../council-server.js";
 import {streamToString} from "../utils.js";
 
+interface LingPutBody {
+    ratholes?: {name: string}[];
+    preferred_location?: string;
+    shutting_down?: boolean;
+    ready_service_ids?: string[];
+    ling_id: string;
+}
+
 export default async function ({req, res, state, provisioner, socketIo}: RouteCtx) {
     const body = await streamToString(req);
     assert(body.length > 0, "no json data received");
-    const data = JSON.parse(`${body}`);
-    assert(data["ratholes"] != null, "ratholes field cannot be null or undefined");
-    assert(data["preferred_location"] != null, "preferred_location field cannot be null or undefined");
-    assert(data["shutting_down"] != null, "shutting_down field cannot be null or undefined");
-    assert(data["ready_service_ids"] != null, "ready_service_ids field cannot be null or undefined");
+    const data = JSON.parse(body) as LingPutBody;
+    assert(data.ratholes != null, "ratholes field cannot be null or undefined");
+    assert(data.preferred_location != null, "preferred_location field cannot be null or undefined");
+    assert(data.shutting_down != null, "shutting_down field cannot be null or undefined");
+    assert(data.ready_service_ids != null, "ready_service_ids field cannot be null or undefined");
 
-    for (const serviceId of data["ready_service_ids"]) {
-        const service = state.services.find(s => s["service_id"] === serviceId);
+    for (const serviceId of data.ready_service_ids) {
+        const service = state.services.find((s) => s.service_id === serviceId);
         assert(service != null, "service is undefined or null");
         if (!service.ling_ready) {
             service.ling_ready = true;
@@ -23,35 +31,34 @@ export default async function ({req, res, state, provisioner, socketIo}: RouteCt
         }
     }
 
-    for (const rathole of data["ratholes"]) {
-
-        let ling = state.lings.find(u => u["ling_id"] === data["ling_id"]);
+    for (const rathole of data.ratholes) {
+        let ling = state.lings.find((u) => u.ling_id === data.ling_id);
         if (!ling) {
-            ling = {ling_id: data["ling_id"], beat: Date.now(), shutting_down: data["shutting_down"]};
+            ling = {ling_id: data.ling_id, beat: Date.now(), shutting_down: data.shutting_down};
             state.lings.push(ling);
         }
         ling.beat = Date.now();
-        if (ling.shutting_down !== data["shutting_down"]) {
-            ling.shutting_down = data["shutting_down"];
+        if (ling.shutting_down !== data.shutting_down) {
+            ling.shutting_down = data.shutting_down;
             state.revision++;
             provisioner.provision(state);
             socketIo.sockets.emit("state-changed");
         }
 
-        const service = state.services.find(s => s["name"] === rathole["name"] && s["ling_id"] === data["ling_id"]);
+        const service = state.services.find((s) => s.name === rathole.name && s.ling_id === data.ling_id);
         if (service) {
             res.setHeader("Content-Type", "text/plain; charset=utf-8");
             res.end("ok");
             return;
         }
 
-        const token = `${crypto.randomBytes(20).toString("hex")}`;
+        const token = crypto.randomBytes(20).toString("hex");
         state.services.push({
             service_id: crypto.randomUUID(),
-            name: rathole["name"],
+            name: rathole.name,
             token: token,
-            preferred_location: data["preferred_location"],
-            ling_id: data["ling_id"],
+            preferred_location: data.preferred_location,
+            ling_id: data.ling_id,
             ling_ready: false,
             remote_port: null,
             host: null,

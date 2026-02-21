@@ -50,13 +50,20 @@ interface StateHandlerOpts {
 export class StateHandler extends Ticker {
 
     private readonly logger;
+
     private readonly stateChanged;
+
     private readonly councilHost;
+
     private readonly socketIo;
+
     private state: State | null = null;
 
     constructor ({logger, councilHost, stateChanged}: StateHandlerOpts) {
-        super({interval: 5000, tick: async () => await this.fetchState()});
+        super({interval: 5000,
+            tick: async () => {
+                await this.fetchState();
+            }});
         this.stateChanged = stateChanged;
         this.councilHost = councilHost;
         this.logger = logger;
@@ -87,17 +94,18 @@ export class StateHandler extends Ticker {
         const logger = this.logger;
         const [err, response] = await to(got.get(`${this.councilHost}/state`));
         if (err || response.statusCode !== 200) {
-            return logger.error("Failed to fetch state from council", {
+            logger.error("Failed to fetch state from council", {
                 "error.message": err?.message,
                 "error.stack_trace": err?.stack,
                 "http.response.status_code": response?.statusCode,
-            });
+            }); return;
         }
 
         const newState = JSON.parse(response.body) as State;
-        if (this.state === null || this.state.revision !== newState.revision) {
+        if (this.state?.revision !== newState.revision) {
             this.state = newState;
             await this.stateChanged(newState);
         }
     }
+
 }

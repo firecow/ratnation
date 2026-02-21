@@ -14,15 +14,19 @@ export async function streamToString (stream: Readable): Promise<string> {
     const chunks: Buffer[] = [];
     return new Promise((resolve, reject) => {
         stream.on("data", (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
-        stream.on("error", (err: Error) => reject(err));
-        stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+        stream.on("error", (err: Error) => {
+            reject(err);
+        });
+        stream.on("end", () => {
+            resolve(Buffer.concat(chunks).toString("utf8"));
+        });
     });
 }
 
-export async function to<T> (promise: Promise<T>) {
-    return promise
-        .then((data) => [null, data])
-        .catch((err) => {
-            return [err, undefined];
+export async function to<T> (promise: Promise<T>): Promise<[Error, undefined] | [null, T]> {
+    return promise.
+        then((data): [null, T] => [null, data]).
+        catch((err: unknown) => {
+            return [err instanceof Error ? err : new Error(String(err)), undefined];
         });
 }

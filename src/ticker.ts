@@ -2,7 +2,9 @@
 export class Ticker {
 
     private readonly interval;
+
     private readonly _tick;
+
     private timer?: NodeJS.Timeout;
 
     constructor ({interval, tick}: {interval: number; tick: () => Promise<void>}) {
@@ -24,11 +26,14 @@ export class Ticker {
         const now = Date.now();
         void this.tick().then(() => {
             const delta = Date.now() - now;
-            this.timer = setTimeout(() => this.start(), Math.max(this.interval - delta, 0));
+            this.timer = setTimeout(() => {
+                this.start();
+            }, Math.max(this.interval - delta, 0));
         });
     }
 
     stop () {
         clearTimeout(this.timer);
     }
+
 }

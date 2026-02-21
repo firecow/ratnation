@@ -11,7 +11,7 @@ import {KingContext} from "../contexts/king-context.js";
 
 export interface KingArguments {
     councilHost: string;
-    rathole: string[];
+    rathole?: string[];
     host: string;
     location: string;
 }
@@ -27,7 +27,7 @@ export async function handler (args: ArgumentsCamelCase) {
     const ratholeManager = new KingRatholeManager(context);
     const syncer = new KingSyncer(context);
     const stateHandler = new StateHandler({
-        ...context,
+        logger: context.logger,
         councilHost: config.councilHost,
         stateChanged: async (state) => {
             context.state = state;

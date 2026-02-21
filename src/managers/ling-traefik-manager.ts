@@ -10,7 +10,7 @@ export class LingTraefikManager extends ProcessManager {
     private readonly context;
 
     constructor (context: LingContext) {
-        super({...context, serviceType: "ratling"});
+        super({logger: context.logger, serviceType: "ratling"});
         this.context = context;
     }
 
@@ -27,7 +27,7 @@ export class LingTraefikManager extends ProcessManager {
             }
 
             const king = state.kings.find((k) => k.host === s.host && k.bind_port === s.bind_port);
-            return (king && !king.shutting_down && s.king_ready);
+            return king && !king.shutting_down && s.king_ready;
         });
     }
 
@@ -53,8 +53,8 @@ export class LingTraefikManager extends ProcessManager {
     }
 
     async each (proxyCnf: LingProxyConfig) {
-        const bindPort = proxyCnf["bind_port"];
-        const name = proxyCnf["name"];
+        const bindPort = proxyCnf.bind_port;
+        const name = proxyCnf.name;
         const services = this.getServices({name});
         if (services.length === 0) {
             return this.killProcess(`${bindPort}`, "SIGTERM");
@@ -79,4 +79,5 @@ export class LingTraefikManager extends ProcessManager {
         }
         await Promise.all(proms);
     }
+
 }

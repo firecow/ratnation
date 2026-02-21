@@ -4,11 +4,13 @@ import {Logger} from "../src/logger.js";
 
 let stateHandler: StateHandler;
 let logger: Logger;
-let stateChangedMock;
+let stateChangedMock: ReturnType<typeof jest.fn>;
+let errorMock: ReturnType<typeof jest.fn>;
 
 beforeEach(() => {
     stateChangedMock = jest.fn<(state: State) => Promise<void> | void>();
-    logger = {info: jest.fn(), error: jest.fn()};
+    errorMock = jest.fn();
+    logger = {info: jest.fn(), error: errorMock} as unknown as Logger;
     stateHandler = new StateHandler({logger, councilHost: "ratcouncil.example.io", stateChanged: stateChangedMock});
 });
 
@@ -19,5 +21,5 @@ afterEach(() => {
 test("Handles bad status code", async () => {
     await stateHandler.fetchState();
 
-    expect(logger.error).toHaveBeenCalledWith("Failed to fetch state from council", expect.objectContaining({"error.message": "Invalid URL"}));
+    expect(errorMock).toHaveBeenCalledWith("Failed to fetch state from council", expect.objectContaining({"error.message": "Invalid URL"}));
 });

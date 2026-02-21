@@ -16,7 +16,9 @@ interface ProcessManagerEnsureProcessOpts {
 export class ProcessManager {
 
     public readonly logger;
+
     private readonly processMap = new Map<string, ChildProcess>();
+
     private readonly serviceType;
 
     constructor ({logger, serviceType}: {logger: Logger; serviceType: string}) {
@@ -66,4 +68,5 @@ export class ProcessManager {
 
         this.processMap.set(key, p);
     }
+
 }

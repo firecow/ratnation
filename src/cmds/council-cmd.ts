@@ -17,7 +17,7 @@ export async function handler (args: ArgumentsCamelCase) {
     const cleaner = new CouncilStateCleaner({state, logger, socketIo});
 
     httpServer.listen(args.port);
-    await new Promise(resolve => httpServer.once("listening", resolve));
+    await new Promise((resolve) => httpServer.once("listening", resolve));
     cleaner.start();
     initCouncilShutdownHandlers({logger, httpServer, cleaner});
     logger.info("Ready", {"service.type": "ratcouncil"});
