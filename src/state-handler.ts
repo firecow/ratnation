@@ -11,6 +11,7 @@ export interface StateKing {
     shutting_down: boolean;
     beat: number;
     location: string;
+    noise_public_key: string | null;
 }
 
 export interface StateLing {

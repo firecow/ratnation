@@ -22,11 +22,21 @@ export default async function ({req, res, state, provisioner, socketIo}: RouteCt
         }
     }
 
+    const noisePublicKey: string | null = data["noise_public_key"] ?? null;
+
     for (const rathole of data["ratholes"]) {
         const king = state.kings.find(k => k.ports === rathole.ports && k.host === data.host);
         if (king) {
+            let changed = false;
             if (king.shutting_down !== data["shutting_down"]) {
                 king.shutting_down = data["shutting_down"];
+                changed = true;
+            }
+            if (king.noise_public_key !== noisePublicKey) {
+                king.noise_public_key = noisePublicKey;
+                changed = true;
+            }
+            if (changed) {
                 state.revision++;
                 provisioner.provision(state);
                 socketIo.sockets.emit("state-changed");
@@ -41,6 +51,7 @@ export default async function ({req, res, state, provisioner, socketIo}: RouteCt
             location: data["location"],
             beat: Date.now(),
             shutting_down: false,
+            noise_public_key: noisePublicKey,
         });
         state.revision++;
         provisioner.provision(state);

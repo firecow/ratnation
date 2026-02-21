@@ -39,8 +39,20 @@ export class KingRatholeManager extends ProcessManager {
             "[server]",
             `bind_addr = "0.0.0.0:${bindPort}"`,
             "",
-            "[server.services]",
         );
+
+        if (this.context.config.noisePrivateKey) {
+            lines.push(
+                "[server.transport]",
+                `type = "noise"`,
+                "",
+                "[server.transport.noise]",
+                `local_private_key = "${this.context.config.noisePrivateKey}"`,
+                "",
+            );
+        }
+
+        lines.push("[server.services]");
 
         for (const service of services) {
             lines.push(

@@ -14,6 +14,8 @@ export interface KingArguments {
     rathole: string[];
     host: string;
     location: string;
+    noisePrivateKey?: string;
+    noisePublicKey?: string;
 }
 
 export const command = "king";
@@ -60,6 +62,14 @@ export function builder (yargs: Argv) {
         type: "string",
         description: "Location identifier",
         demandOption: true,
+    });
+    yargs.options("noise-private-key", {
+        type: "string",
+        description: "Base64 encoded Noise protocol private key (from rathole --genkey)",
+    });
+    yargs.options("noise-public-key", {
+        type: "string",
+        description: "Base64 encoded Noise protocol public key (from rathole --genkey)",
     });
     return yargs;
 }

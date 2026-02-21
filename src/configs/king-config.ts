@@ -12,11 +12,19 @@ export class KingConfig {
     location: string;
     host: string;
     councilHost: string;
+    noisePrivateKey: string | null;
+    noisePublicKey: string | null;
 
     constructor (args: KingArguments) {
         this.location = args.location;
         this.host = args.host;
         this.councilHost = args.councilHost;
+
+        const hasPrivate = args.noisePrivateKey != null;
+        const hasPublic = args.noisePublicKey != null;
+        assert(hasPrivate === hasPublic, "--noise-private-key and --noise-public-key must both be set or both be omitted");
+        this.noisePrivateKey = args.noisePrivateKey ?? null;
+        this.noisePublicKey = args.noisePublicKey ?? null;
 
         for (const ratholeArg of args.rathole ?? []) {
             const pairs: {[key: string]: string} = {};

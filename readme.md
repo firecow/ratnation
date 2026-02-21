@@ -16,7 +16,15 @@ Controlplane application starting rathole servers, must be reachable for all rat
 Dataplane application managing rathole clients and traefik proxies, can be completely isolated
 
 ### encryption
-Since reverse tunnel and proxy encryption isn't implemented yet, it's highly recommended that network traffic encryption is handled via other mechanisms (e.g. [Nebula](https://github.com/slackhq/nebula) or VPN), unless you are absolutely sure your traffic will stay in-house
+Rathole tunnel traffic between kings and lings can be encrypted using the [Noise protocol](https://noiseprotocol.org/) (NK pattern). Generate a keypair with `rathole --genkey` and pass the keys to the king:
+
+```bash
+king --noise-private-key="<base64-private-key>" --noise-public-key="<base64-public-key>" ...
+```
+
+The king sends its public key to the council, which distributes it to lings via state. Lings automatically enable encryption when connecting to kings that have a noise public key. Kings without noise keys continue to work unencrypted.
+
+For proxy traffic or additional defense-in-depth, network-level encryption via [Nebula](https://github.com/slackhq/nebula) or VPN is still recommended.
 
 
 ## Quickstart

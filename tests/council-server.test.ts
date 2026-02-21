@@ -45,5 +45,53 @@ describe("PUT /king", () => {
         expect(res.text).toEqual("ok");
         expect(res.statusCode).toEqual(200);
     });
+
+    test("stores noise_public_key on king creation", async () => {
+        const server = createServer({provisioner, state}).httpServer;
+        await request(server).put("/king").send({
+            ratholes: [{bind_port: 2333, ports: "5000-5001"}],
+            ready_service_ids: [],
+            location: "mylocation",
+            host: "example.com",
+            noise_public_key: "abc123pubkey",
+        });
+        expect(state.kings).toHaveLength(1);
+        expect(state.kings[0].noise_public_key).toEqual("abc123pubkey");
+    });
+
+    test("stores null noise_public_key when not provided", async () => {
+        const server = createServer({provisioner, state}).httpServer;
+        await request(server).put("/king").send({
+            ratholes: [{bind_port: 2333, ports: "5000-5001"}],
+            ready_service_ids: [],
+            location: "mylocation",
+            host: "example.com",
+        });
+        expect(state.kings).toHaveLength(1);
+        expect(state.kings[0].noise_public_key).toBeNull();
+    });
+
+    test("updates noise_public_key on existing king", async () => {
+        state.kings.push({
+            bind_port: 2333,
+            ports: "5000-5001",
+            host: "example.com",
+            location: "mylocation",
+            beat: 0,
+            shutting_down: false,
+            noise_public_key: null,
+        });
+        const initialRevision = state.revision;
+        const server = createServer({provisioner, state}).httpServer;
+        await request(server).put("/king").send({
+            ratholes: [{bind_port: 2333, ports: "5000-5001"}],
+            ready_service_ids: [],
+            location: "mylocation",
+            host: "example.com",
+            noise_public_key: "newkey123",
+        });
+        expect(state.kings[0].noise_public_key).toEqual("newkey123");
+        expect(state.revision).toBeGreaterThan(initialRevision);
+    });
 });
 

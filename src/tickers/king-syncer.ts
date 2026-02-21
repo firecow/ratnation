@@ -24,6 +24,7 @@ export class KingSyncer extends Ticker {
                 ratholes: this.context.config.ratholes,
                 ready_service_ids: this.context.readyServiceIds,
                 location: this.context.config.location,
+                noise_public_key: this.context.config.noisePublicKey,
             },
         }));
         if (err || response.statusCode !== 200) {

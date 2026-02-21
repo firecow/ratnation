@@ -9,6 +9,7 @@ import {RatholeTransform} from "../stream/rathole-transform.js";
 export class LingRatholeManager extends ProcessManager {
 
     private readonly context;
+    private readonly noiseKeys = new Map<string, string | null>();
 
     constructor (context: LingContext) {
         super({...context, serviceType: "ratling"});
@@ -26,14 +27,34 @@ export class LingRatholeManager extends ProcessManager {
         });
     }
 
+    private getNoisePublicKey (kingBindAddr: string): string | null {
+        const [host, portStr] = kingBindAddr.split(":");
+        const bindPort = Number(portStr);
+        const king = this.context.state.kings.find(k => k.host === host && k.bind_port === bindPort);
+        return king?.noise_public_key ?? null;
+    }
+
     private writeRatholeFile (kingBindAddr: string, services: StateService[], config: LingConfig, lingId: string): string {
+        const noisePublicKey = this.getNoisePublicKey(kingBindAddr);
         const lines = [];
         lines.push(
             "[client]",
             `remote_addr = "${kingBindAddr}"`,
             "",
-            "[client.services]",
         );
+
+        if (noisePublicKey) {
+            lines.push(
+                "[client.transport]",
+                `type = "noise"`,
+                "",
+                "[client.transport.noise]",
+                `remote_public_key = "${noisePublicKey}"`,
+                "",
+            );
+        }
+
+        lines.push("[client.services]");
 
         for (const service of services.filter(s => `${s.host}:${s.bind_port}` === kingBindAddr)) {
             const ratholeCnf = config.ratholeMap.get(service.name);
@@ -56,6 +77,16 @@ export class LingRatholeManager extends ProcessManager {
         const services = this.getServices({config, lingId});
 
         const kingBindAddrs = services.map(s => `${s.host}:${s.bind_port}`);
+
+        // Kill processes where the noise key has changed so they restart with updated config
+        for (const kingBindAddr of kingBindAddrs) {
+            const noisePublicKey = this.getNoisePublicKey(kingBindAddr);
+            const previousKey = this.noiseKeys.get(kingBindAddr);
+            if (previousKey !== undefined && previousKey !== noisePublicKey) {
+                await this.killProcess(kingBindAddr, "SIGTERM");
+            }
+            this.noiseKeys.set(kingBindAddr, noisePublicKey);
+        }
 
         // Ensure rathole process is running and maintain rathole client configuration file
         for (const kingBindAddr of kingBindAddrs) {

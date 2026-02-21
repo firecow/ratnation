@@ -27,7 +27,7 @@ test("Find available port on king", () => {
                 remote_port: null,
             },
         ],
-        kings: [{host: "kinghost.com", ports: "5000-5000", location: "myhouse", bind_port: 2343, beat: 0, shutting_down: false}],
+        kings: [{host: "kinghost.com", ports: "5000-5000", location: "myhouse", bind_port: 2343, beat: 0, shutting_down: false, noise_public_key: null}],
         lings: [{ling_id: "some_ling_id", beat: 0, shutting_down: false}],
         revision: 0,
     };
@@ -43,6 +43,7 @@ test("Find available port on king", () => {
                 "location": "myhouse",
                 "ports": "5000-5000",
                 "shutting_down": false,
+                "noise_public_key": null,
             },
             "ports": [5000],
         },

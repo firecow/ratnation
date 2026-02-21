@@ -27,6 +27,8 @@ services:
       --host="172.17.0.1"
       --rathole="bind_port=2333 ports=5000-5001"
       --location=CPH
+      # --noise-private-key="<base64-from-rathole-genkey>"
+      # --noise-public-key="<base64-from-rathole-genkey>"
     ports:
       - { target: 2333, published: 2333, protocol: tcp, mode: host }
       - { target: 5000, published: 5000, protocol: tcp, mode: host }
