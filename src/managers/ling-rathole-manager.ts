@@ -46,7 +46,7 @@ export class LingRatholeManager extends ProcessManager {
         if (noisePublicKey) {
             lines.push(
                 "[client.transport]",
-                `type = "noise"`,
+                "type = \"noise\"",
                 "",
                 "[client.transport.noise]",
                 `remote_public_key = "${noisePublicKey}"`,

@@ -44,7 +44,7 @@ export class KingRatholeManager extends ProcessManager {
         if (this.context.config.noisePrivateKey) {
             lines.push(
                 "[server.transport]",
-                `type = "noise"`,
+                "type = \"noise\"",
                 "",
                 "[server.transport.noise]",
                 `local_private_key = "${this.context.config.noisePrivateKey}"`,
