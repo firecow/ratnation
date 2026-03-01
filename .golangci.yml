@@ -1,51 +1,7 @@
 version: "2"
 
 formatters:
-  enable:
-    - gofmt
+  enable-all: true
 
 linters:
-  enable:
-    - bodyclose
-    - copyloopvar
-    - errcheck
-    - errorlint
-    - gocognit
-    - gocritic
-    - gosec
-    - govet
-    - ineffassign
-    - misspell
-    - nilerr
-    - prealloc
-    - revive
-    - staticcheck
-    - unconvert
-    - unparam
-    - unused
-    - wastedassign
-  settings:
-    gocognit:
-      min-complexity: 30
-    gosec:
-      excludes:
-        - G704
-        - G706
-    revive:
-      rules:
-        - name: blank-imports
-        - name: context-as-argument
-        - name: dot-imports
-        - name: error-return
-        - name: error-strings
-        - name: exported
-          disabled: true
-        - name: increment-decrement
-        - name: indent-error-flow
-        - name: range
-        - name: receiver-naming
-        - name: redefines-builtin-id
-        - name: time-naming
-        - name: unexported-return
-        - name: var-declaration
-        - name: var-naming
+  enable-all: true
