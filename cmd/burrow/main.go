@@ -1,0 +1,43 @@
+package main
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/firecow/ratnation/internal/council"
+	"github.com/firecow/ratnation/internal/debug"
+	"github.com/firecow/ratnation/internal/king"
+	"github.com/firecow/ratnation/internal/ling"
+	"github.com/spf13/cobra"
+)
+
+func main() {
+	os.Exit(run())
+}
+
+func run() int {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	root := &cobra.Command{
+		Use:   "burrow",
+		Short: "Distributed service mesh with native QUIC tunneling",
+	}
+
+	root.AddCommand(council.Command())
+	root.AddCommand(king.Command())
+	root.AddCommand(ling.Command())
+	root.AddCommand(debug.Command())
+
+	root.SetContext(ctx)
+
+	if err := root.ExecuteContext(ctx); err != nil {
+		return 1
+	}
+	return 0
+}

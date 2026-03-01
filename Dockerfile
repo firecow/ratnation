@@ -1,18 +1,17 @@
-FROM traefik:v3.5.0 AS traefik
+FROM golang:1.24.4-alpine AS builder
 
-FROM alpine:3.22.1 AS rathole
-RUN wget -O rathole.zip https://github.com/rapiz1/rathole/releases/download/v0.4.8/rathole-x86_64-unknown-linux-musl.zip && unzip rathole.zip
+WORKDIR /build
 
-FROM alpine:3.22.1 AS node_modules
-RUN apk add nodejs npm
-COPY package.json package-lock.json ./
-RUN npm install --no-audit --no-progress --omit=dev
+COPY go.mod go.sum ./
+RUN go mod download
 
-FROM alpine:3.22.1
-RUN apk add nodejs npm
-COPY --from=node_modules /node_modules /node_modules
-COPY --from=traefik /usr/local/bin/traefik /usr/local/bin/traefik
-COPY --from=rathole /rathole /usr/local/bin/rathole
-COPY package.json ./
-COPY src src
-ENTRYPOINT ["node", "src/index.js"]
+COPY . .
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o burrow ./cmd/burrow
+
+FROM alpine:3.21.3
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /build/burrow /usr/local/bin/burrow
+
+ENTRYPOINT ["burrow"]

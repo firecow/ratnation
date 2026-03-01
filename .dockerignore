@@ -1,1 +1,3 @@
-/src/managers/*.toml
+.git
+.github
+*.md
