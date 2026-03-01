@@ -4,87 +4,132 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
 )
 
-type wsHub struct {
+const broadcastTimeout = 5 * time.Second
+
+// WSHub manages WebSocket connections and broadcasting.
+type WSHub struct {
 	mu      sync.Mutex
 	clients map[*websocket.Conn]struct{}
 }
 
-func newWSHub() *wsHub {
-	return &wsHub{
+// NewWSHub creates a new WebSocket hub.
+func NewWSHub() *WSHub {
+	return &WSHub{
+		mu:      sync.Mutex{},
 		clients: make(map[*websocket.Conn]struct{}),
 	}
 }
 
-func (h *wsHub) add(conn *websocket.Conn) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.clients[conn] = struct{}{}
-}
-
-func (h *wsHub) remove(conn *websocket.Conn) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	delete(h.clients, conn)
-}
-
-func (h *wsHub) broadcast() {
+// Broadcast sends a state-changed message to all connected WebSocket clients.
+func (h *WSHub) Broadcast(ctx context.Context) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	broadcastCtx, cancel := context.WithTimeout(ctx, broadcastTimeout)
 	defer cancel()
 
 	for conn := range h.clients {
-		err := conn.Write(ctx, websocket.MessageText, []byte("state-changed"))
+		err := conn.Write(
+			broadcastCtx,
+			websocket.MessageText,
+			[]byte("state-changed"),
+		)
 		if err != nil {
 			slog.Warn("Failed to write to WebSocket client", "error", err)
+
 			_ = conn.CloseNow()
 			delete(h.clients, conn)
 		}
 	}
 }
 
-func (h *wsHub) closeAll() {
+func (h *WSHub) add(conn *websocket.Conn) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	h.clients[conn] = struct{}{}
+}
+
+func (h *WSHub) remove(conn *websocket.Conn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	delete(h.clients, conn)
+}
+
+func (h *WSHub) closeAll() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	for conn := range h.clients {
 		_ = conn.Close(websocket.StatusGoingAway, "server shutting down")
 		delete(h.clients, conn)
 	}
 }
 
-func (h *wsHub) handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		InsecureSkipVerify: true,
+func sanitizeRemoteAddr(addr string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(addr, "\n", ""), "\r", "")
+}
+
+func logWebSocketEvent(ctx context.Context, message string, remoteAddr string) {
+	sanitized := sanitizeRemoteAddr(remoteAddr)
+
+	slog.LogAttrs(
+		ctx,
+		slog.LevelInfo,
+		message,
+		slog.String("remote_addr", sanitized),
+	)
+}
+
+func (h *WSHub) handleWebSocket(
+	writer http.ResponseWriter,
+	request *http.Request,
+) {
+	conn, err := websocket.Accept(writer, request, &websocket.AcceptOptions{
+		InsecureSkipVerify:   true,
+		Subprotocols:         nil,
+		OriginPatterns:       nil,
+		CompressionMode:      0,
+		CompressionThreshold: 0,
+		OnPingReceived:       nil,
+		OnPongReceived:       nil,
 	})
 	if err != nil {
 		slog.Error("WebSocket accept failed", "error", err)
+
 		return
 	}
 
-	slog.Info("WebSocket client connected", "remote_addr", r.RemoteAddr)
+	remoteAddr := sanitizeRemoteAddr(request.RemoteAddr)
+	requestCtx := request.Context()
+
+	logWebSocketEvent(requestCtx, "WebSocket client connected", remoteAddr)
 	h.add(conn)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if err := conn.Write(ctx, websocket.MessageText, []byte("state-changed")); err != nil {
-		slog.Warn("Failed to send initial state-changed", "error", err)
+	writeErr := conn.Write(
+		requestCtx,
+		websocket.MessageText,
+		[]byte("state-changed"),
+	)
+	if writeErr != nil {
+		slog.Warn("Failed to send initial state-changed", "error", writeErr)
 	}
 
 	for {
-		_, _, err := conn.Read(ctx)
-		if err != nil {
+		_, _, readErr := conn.Read(requestCtx)
+		if readErr != nil {
 			break
 		}
 	}
 
 	h.remove(conn)
-	slog.Info("WebSocket client disconnected", "remote_addr", r.RemoteAddr)
+	logWebSocketEvent(requestCtx, "WebSocket client disconnected", remoteAddr)
 }

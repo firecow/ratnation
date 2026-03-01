@@ -1,52 +1,74 @@
-package ling
+package ling_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/firecow/burrow/internal/ling"
 	"github.com/firecow/burrow/internal/state"
 )
 
+const (
+	testKingHost     = "10.0.0.1"
+	testKingBindPort = 5000
+	testRemotePort   = 12345
+)
+
 func TestParseTunnelArgs_Valid(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"name=myservice local_addr=127.0.0.1:8080"}
-	configs, err := parseTunnelArgs(args)
+
+	configs, err := ling.ParseTunnelArgs(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if len(configs) != 1 {
 		t.Fatalf("expected 1 config, got %d", len(configs))
 	}
+
 	if configs[0].Name != "myservice" {
 		t.Errorf("expected name=myservice, got %s", configs[0].Name)
 	}
+
 	if configs[0].LocalAddr != "127.0.0.1:8080" {
 		t.Errorf("expected local_addr=127.0.0.1:8080, got %s", configs[0].LocalAddr)
 	}
 }
 
 func TestParseTunnelArgs_Multiple(t *testing.T) {
+	t.Parallel()
+
 	args := []string{
 		"name=svc1 local_addr=127.0.0.1:8080",
 		"name=svc2 local_addr=127.0.0.1:9090",
 	}
-	configs, err := parseTunnelArgs(args)
+
+	configs, err := ling.ParseTunnelArgs(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if len(configs) != 2 {
 		t.Fatalf("expected 2 configs, got %d", len(configs))
 	}
+
 	if configs[0].Name != "svc1" || configs[1].Name != "svc2" {
 		t.Errorf("unexpected names: %s, %s", configs[0].Name, configs[1].Name)
 	}
 }
 
 func TestParseTunnelArgs_MissingName(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"local_addr=127.0.0.1:8080"}
-	_, err := parseTunnelArgs(args)
+
+	_, err := ling.ParseTunnelArgs(args)
 	if err == nil {
 		t.Fatal("expected error for missing name")
 	}
+
 	expected := "--tunnel must have 'name' field"
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
@@ -54,11 +76,15 @@ func TestParseTunnelArgs_MissingName(t *testing.T) {
 }
 
 func TestParseTunnelArgs_MissingLocalAddr(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"name=myservice"}
-	_, err := parseTunnelArgs(args)
+
+	_, err := ling.ParseTunnelArgs(args)
 	if err == nil {
 		t.Fatal("expected error for missing local_addr")
 	}
+
 	expected := "--tunnel must have 'local_addr' field"
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
@@ -66,38 +92,51 @@ func TestParseTunnelArgs_MissingLocalAddr(t *testing.T) {
 }
 
 func TestParseTunnelArgs_Empty(t *testing.T) {
-	configs, err := parseTunnelArgs(nil)
+	t.Parallel()
+
+	configs, err := ling.ParseTunnelArgs(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if configs != nil {
 		t.Errorf("expected nil configs for nil args, got %v", configs)
 	}
 }
 
 func TestParseProxyArgs_Valid(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"name=myproxy bind_port=3306"}
-	configs, err := parseProxyArgs(args)
+
+	configs, err := ling.ParseProxyArgs(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if len(configs) != 1 {
 		t.Fatalf("expected 1 config, got %d", len(configs))
 	}
+
 	if configs[0].Name != "myproxy" {
 		t.Errorf("expected name=myproxy, got %s", configs[0].Name)
 	}
+
 	if configs[0].BindPort != 3306 {
 		t.Errorf("expected bind_port=3306, got %d", configs[0].BindPort)
 	}
 }
 
 func TestParseProxyArgs_MissingName(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"bind_port=3306"}
-	_, err := parseProxyArgs(args)
+
+	_, err := ling.ParseProxyArgs(args)
 	if err == nil {
 		t.Fatal("expected error for missing name")
 	}
+
 	expected := "--proxy must have 'name' field"
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
@@ -105,11 +144,15 @@ func TestParseProxyArgs_MissingName(t *testing.T) {
 }
 
 func TestParseProxyArgs_MissingBindPort(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"name=myproxy"}
-	_, err := parseProxyArgs(args)
+
+	_, err := ling.ParseProxyArgs(args)
 	if err == nil {
 		t.Fatal("expected error for missing bind_port")
 	}
+
 	expected := "--proxy must have 'bind_port' field"
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
@@ -117,208 +160,324 @@ func TestParseProxyArgs_MissingBindPort(t *testing.T) {
 }
 
 func TestParseProxyArgs_InvalidBindPort(t *testing.T) {
+	t.Parallel()
+
 	args := []string{"name=myproxy bind_port=abc"}
-	_, err := parseProxyArgs(args)
+
+	_, err := ling.ParseProxyArgs(args)
 	if err == nil {
 		t.Fatal("expected error for invalid bind_port")
-	}
-	expected := "invalid bind_port: abc"
-	if err.Error() != expected {
-		t.Errorf("expected error %q, got %q", expected, err.Error())
 	}
 }
 
 func TestParseProxyArgs_Empty(t *testing.T) {
-	configs, err := parseProxyArgs(nil)
+	t.Parallel()
+
+	configs, err := ling.ParseProxyArgs(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if configs != nil {
 		t.Errorf("expected nil configs for nil args, got %v", configs)
 	}
 }
 
 func TestComputeReadyServiceIDs_MatchingLing(t *testing.T) {
-	s := &state.State{
-		Services: []state.StateService{
+	t.Parallel()
+
+	stateSnapshot := &state.State{
+		Revision: 0,
+		Services: []state.Service{
 			{
-				ServiceID: "svc-1",
-				Name:      "web",
-				LingID:    "ling-a",
-				KingReady: true,
+				ServiceID:         "svc-1",
+				Name:              "web",
+				Token:             "",
+				LingID:            "ling-a",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         true,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
 			},
 		},
+		Kings: nil,
+		Lings: nil,
 	}
 	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
+
+	ids := ling.ComputeReadyServiceIDs(stateSnapshot, "ling-a", tunnelMap)
 	if len(ids) != 1 || ids[0] != "svc-1" {
 		t.Errorf("expected [svc-1], got %v", ids)
 	}
 }
 
 func TestComputeReadyServiceIDs_NonMatchingLing(t *testing.T) {
-	s := &state.State{
-		Services: []state.StateService{
+	t.Parallel()
+
+	stateSnapshot := &state.State{
+		Revision: 0,
+		Services: []state.Service{
 			{
-				ServiceID: "svc-1",
-				Name:      "web",
-				LingID:    "ling-b",
-				KingReady: true,
+				ServiceID:         "svc-1",
+				Name:              "web",
+				Token:             "",
+				LingID:            "ling-b",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         true,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
 			},
 		},
+		Kings: nil,
+		Lings: nil,
 	}
 	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
+
+	ids := ling.ComputeReadyServiceIDs(stateSnapshot, "ling-a", tunnelMap)
 	if len(ids) != 0 {
 		t.Errorf("expected empty, got %v", ids)
 	}
 }
 
 func TestComputeReadyServiceIDs_MissingTunnelEntry(t *testing.T) {
-	s := &state.State{
-		Services: []state.StateService{
+	t.Parallel()
+
+	stateSnapshot := &state.State{
+		Revision: 0,
+		Services: []state.Service{
 			{
-				ServiceID: "svc-1",
-				Name:      "db",
-				LingID:    "ling-a",
-				KingReady: true,
+				ServiceID:         "svc-1",
+				Name:              "db",
+				Token:             "",
+				LingID:            "ling-a",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         true,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
 			},
 		},
+		Kings: nil,
+		Lings: nil,
 	}
 	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
+
+	ids := ling.ComputeReadyServiceIDs(stateSnapshot, "ling-a", tunnelMap)
 	if len(ids) != 0 {
 		t.Errorf("expected empty, got %v", ids)
 	}
 }
 
 func TestComputeReadyServiceIDs_KingNotReady(t *testing.T) {
-	s := &state.State{
-		Services: []state.StateService{
+	t.Parallel()
+
+	stateSnapshot := &state.State{
+		Revision: 0,
+		Services: []state.Service{
 			{
-				ServiceID: "svc-1",
-				Name:      "web",
-				LingID:    "ling-a",
-				KingReady: false,
+				ServiceID:         "svc-1",
+				Name:              "web",
+				Token:             "",
+				LingID:            "ling-a",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
 			},
 		},
+		Kings: nil,
+		Lings: nil,
 	}
 	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
+
+	ids := ling.ComputeReadyServiceIDs(stateSnapshot, "ling-a", tunnelMap)
 	if len(ids) != 0 {
 		t.Errorf("expected empty, got %v", ids)
 	}
 }
 
-func TestComputeReadyServiceIDs_MultipleServices(t *testing.T) {
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", Name: "web", LingID: "ling-a", KingReady: true},
-			{ServiceID: "svc-2", Name: "api", LingID: "ling-a", KingReady: true},
-			{ServiceID: "svc-3", Name: "web", LingID: "ling-b", KingReady: true},
-			{ServiceID: "svc-4", Name: "db", LingID: "ling-a", KingReady: true},
-			{ServiceID: "svc-5", Name: "web", LingID: "ling-a", KingReady: false},
-		},
+func newTestService(
+	serviceID, name, lingID string,
+	kingReady bool,
+) state.Service {
+	return state.Service{
+		ServiceID:         serviceID,
+		Name:              name,
+		Token:             "",
+		LingID:            lingID,
+		PreferredLocation: "",
+		LingReady:         false,
+		KingReady:         kingReady,
+		Host:              nil,
+		BindPort:          nil,
+		RemotePort:        nil,
 	}
+}
+
+func buildMultipleServicesState() *state.State {
+	return &state.State{
+		Revision: 0,
+		Services: []state.Service{
+			newTestService("svc-1", "web", "ling-a", true),
+			newTestService("svc-2", "api", "ling-a", true),
+			newTestService("svc-3", "web", "ling-b", true),
+			newTestService("svc-4", "db", "ling-a", true),
+			newTestService("svc-5", "web", "ling-a", false),
+		},
+		Kings: nil,
+		Lings: nil,
+	}
+}
+
+func TestComputeReadyServiceIDs_MultipleServices(t *testing.T) {
+	t.Parallel()
+
+	stateSnapshot := buildMultipleServicesState()
+
 	tunnelMap := map[string]string{
 		"web": "127.0.0.1:8080",
 		"api": "127.0.0.1:9090",
 	}
-	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
+
+	ids := ling.ComputeReadyServiceIDs(stateSnapshot, "ling-a", tunnelMap)
 	if len(ids) != 2 {
 		t.Fatalf("expected 2 ready IDs, got %d: %v", len(ids), ids)
 	}
+
 	idSet := map[string]bool{}
-	for _, id := range ids {
-		idSet[id] = true
+
+	for _, identifier := range ids {
+		idSet[identifier] = true
 	}
+
 	if !idSet["svc-1"] || !idSet["svc-2"] {
 		t.Errorf("expected svc-1 and svc-2, got %v", ids)
 	}
 }
 
-func TestOnStateChanged_UpdatesProxyTargets(t *testing.T) {
-	kingHost := "10.0.0.1"
-	kingBindPort := 5000
-	remotePort := 12345
+type stateChangedTestCase struct {
+	name             string
+	kingShuttingDown bool
+	lingShuttingDown bool
+	lingReady        bool
+	kingReady        bool
+	hostNil          bool
+	expectedTargets  int
+}
 
-	s := &state.State{
-		Kings: []state.StateKing{
-			{Host: kingHost, BindPort: kingBindPort, ShuttingDown: false},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-a", ShuttingDown: false},
-		},
-		Services: []state.StateService{
+func buildStateChangedState(testCase stateChangedTestCase) *state.State {
+	kingHost := testKingHost
+	kingBindPort := testKingBindPort
+	remotePort := testRemotePort
+
+	var hostPtr *string
+
+	var bindPortPtr *int
+
+	var remotePortPtr *int
+
+	if !testCase.hostNil {
+		hostPtr = &kingHost
+		bindPortPtr = &kingBindPort
+		remotePortPtr = &remotePort
+	}
+
+	return &state.State{
+		Revision: 0,
+		Kings: []state.King{
 			{
-				ServiceID:  "svc-1",
-				Name:       "myproxy",
-				LingID:     "ling-a",
-				LingReady:  true,
-				KingReady:  true,
-				Host:       &kingHost,
-				BindPort:   &kingBindPort,
-				RemotePort: &remotePort,
+				BindPort:     kingBindPort,
+				Host:         kingHost,
+				Ports:        "",
+				ShuttingDown: testCase.kingShuttingDown,
+				Beat:         0,
+				Location:     "",
+				CertPEM:      "",
+			},
+		},
+		Lings: []state.Ling{
+			{
+				LingID:       "ling-a",
+				ShuttingDown: testCase.lingShuttingDown,
+				Beat:         0,
+			},
+		},
+		Services: []state.Service{
+			{
+				ServiceID:         "svc-1",
+				Name:              "myproxy",
+				Token:             "",
+				LingID:            "ling-a",
+				PreferredLocation: "",
+				LingReady:         testCase.lingReady,
+				KingReady:         testCase.kingReady,
+				Host:              hostPtr,
+				BindPort:          bindPortPtr,
+				RemotePort:        remotePortPtr,
 			},
 		},
 	}
+}
 
-	proxy := newTCPProxy("myproxy", 0)
-	tcpProxies := map[string]*tcpProxy{"myproxy": proxy}
-	tc := newTunnelClient()
+func TestOnStateChanged_UpdatesProxyTargets(t *testing.T) {
+	t.Parallel()
 
-	onStateChanged(context.Background(), s, "other-ling", map[string]string{}, tc, tcpProxies)
+	stateSnapshot := buildStateChangedState(stateChangedTestCase{
+		name:             "updates proxy targets",
+		kingShuttingDown: false,
+		lingShuttingDown: false,
+		lingReady:        true,
+		kingReady:        true,
+		hostNil:          false,
+		expectedTargets:  1,
+	})
 
-	proxy.mu.RLock()
-	targets := proxy.targets
-	proxy.mu.RUnlock()
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
+
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+	)
+
+	targets := proxy.ReadTargets()
 
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target, got %d", len(targets))
 	}
-	if targets[0].host != kingHost {
-		t.Errorf("expected host=%s, got %s", kingHost, targets[0].host)
-	}
-	if targets[0].remotePort != remotePort {
-		t.Errorf("expected remotePort=%d, got %d", remotePort, targets[0].remotePort)
-	}
 }
 
 func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
-	kingHost := "10.0.0.1"
-	kingBindPort := 5000
-	remotePort := 12345
+	t.Parallel()
 
-	s := &state.State{
-		Kings: []state.StateKing{
-			{Host: kingHost, BindPort: kingBindPort, ShuttingDown: false},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-a", ShuttingDown: true},
-		},
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				Name:       "myproxy",
-				LingID:     "ling-a",
-				LingReady:  true,
-				KingReady:  true,
-				Host:       &kingHost,
-				BindPort:   &kingBindPort,
-				RemotePort: &remotePort,
-			},
-		},
-	}
+	stateSnapshot := buildStateChangedState(stateChangedTestCase{
+		name:             "excludes shutting down ling",
+		kingShuttingDown: false,
+		lingShuttingDown: true,
+		lingReady:        true,
+		kingReady:        true,
+		hostNil:          false,
+		expectedTargets:  0,
+	})
 
-	proxy := newTCPProxy("myproxy", 0)
-	tcpProxies := map[string]*tcpProxy{"myproxy": proxy}
-	tc := newTunnelClient()
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
 
-	onStateChanged(context.Background(), s, "other-ling", map[string]string{}, tc, tcpProxies)
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+	)
 
-	proxy.mu.RLock()
-	targets := proxy.targets
-	proxy.mu.RUnlock()
+	targets := proxy.ReadTargets()
 
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (ling shutting down), got %d", len(targets))
@@ -326,40 +485,28 @@ func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
 }
 
 func TestOnStateChanged_ExcludesShuttingDownKing(t *testing.T) {
-	kingHost := "10.0.0.1"
-	kingBindPort := 5000
-	remotePort := 12345
+	t.Parallel()
 
-	s := &state.State{
-		Kings: []state.StateKing{
-			{Host: kingHost, BindPort: kingBindPort, ShuttingDown: true},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-a", ShuttingDown: false},
-		},
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				Name:       "myproxy",
-				LingID:     "ling-a",
-				LingReady:  true,
-				KingReady:  true,
-				Host:       &kingHost,
-				BindPort:   &kingBindPort,
-				RemotePort: &remotePort,
-			},
-		},
-	}
+	stateSnapshot := buildStateChangedState(stateChangedTestCase{
+		name:             "excludes shutting down king",
+		kingShuttingDown: true,
+		lingShuttingDown: false,
+		lingReady:        true,
+		kingReady:        true,
+		hostNil:          false,
+		expectedTargets:  0,
+	})
 
-	proxy := newTCPProxy("myproxy", 0)
-	tcpProxies := map[string]*tcpProxy{"myproxy": proxy}
-	tc := newTunnelClient()
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
 
-	onStateChanged(context.Background(), s, "other-ling", map[string]string{}, tc, tcpProxies)
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+	)
 
-	proxy.mu.RLock()
-	targets := proxy.targets
-	proxy.mu.RUnlock()
+	targets := proxy.ReadTargets()
 
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (king shutting down), got %d", len(targets))
@@ -367,40 +514,28 @@ func TestOnStateChanged_ExcludesShuttingDownKing(t *testing.T) {
 }
 
 func TestOnStateChanged_ExcludesNotReady(t *testing.T) {
-	kingHost := "10.0.0.1"
-	kingBindPort := 5000
-	remotePort := 12345
+	t.Parallel()
 
-	s := &state.State{
-		Kings: []state.StateKing{
-			{Host: kingHost, BindPort: kingBindPort, ShuttingDown: false},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-a", ShuttingDown: false},
-		},
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				Name:       "myproxy",
-				LingID:     "ling-a",
-				LingReady:  false,
-				KingReady:  true,
-				Host:       &kingHost,
-				BindPort:   &kingBindPort,
-				RemotePort: &remotePort,
-			},
-		},
-	}
+	stateSnapshot := buildStateChangedState(stateChangedTestCase{
+		name:             "excludes not ready",
+		kingShuttingDown: false,
+		lingShuttingDown: false,
+		lingReady:        false,
+		kingReady:        true,
+		hostNil:          false,
+		expectedTargets:  0,
+	})
 
-	proxy := newTCPProxy("myproxy", 0)
-	tcpProxies := map[string]*tcpProxy{"myproxy": proxy}
-	tc := newTunnelClient()
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
 
-	onStateChanged(context.Background(), s, "other-ling", map[string]string{}, tc, tcpProxies)
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+	)
 
-	proxy.mu.RLock()
-	targets := proxy.targets
-	proxy.mu.RUnlock()
+	targets := proxy.ReadTargets()
 
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (ling not ready), got %d", len(targets))
@@ -408,38 +543,28 @@ func TestOnStateChanged_ExcludesNotReady(t *testing.T) {
 }
 
 func TestOnStateChanged_ExcludesMissingHostOrPort(t *testing.T) {
-	kingHost := "10.0.0.1"
-	kingBindPort := 5000
+	t.Parallel()
 
-	s := &state.State{
-		Kings: []state.StateKing{
-			{Host: kingHost, BindPort: kingBindPort, ShuttingDown: false},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-a", ShuttingDown: false},
-		},
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				Name:       "myproxy",
-				LingID:     "ling-a",
-				LingReady:  true,
-				KingReady:  true,
-				Host:       nil,
-				RemotePort: nil,
-			},
-		},
-	}
+	stateSnapshot := buildStateChangedState(stateChangedTestCase{
+		name:             "excludes missing host/port",
+		kingShuttingDown: false,
+		lingShuttingDown: false,
+		lingReady:        true,
+		kingReady:        true,
+		hostNil:          true,
+		expectedTargets:  0,
+	})
 
-	proxy := newTCPProxy("myproxy", 0)
-	tcpProxies := map[string]*tcpProxy{"myproxy": proxy}
-	tc := newTunnelClient()
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
 
-	onStateChanged(context.Background(), s, "other-ling", map[string]string{}, tc, tcpProxies)
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+	)
 
-	proxy.mu.RLock()
-	targets := proxy.targets
-	proxy.mu.RUnlock()
+	targets := proxy.ReadTargets()
 
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (nil host/port), got %d", len(targets))

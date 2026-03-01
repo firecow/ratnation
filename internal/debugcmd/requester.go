@@ -1,7 +1,9 @@
+// Package debugcmd provides debug utilities for testing HTTP connectivity.
 package debugcmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -10,22 +12,37 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const defaultIntervalMilliseconds = 500
+
+// Command returns the cobra command for the debug-requester subcommand.
 func Command() *cobra.Command {
 	var (
-		url      string
-		interval int
+		requestURL string
+		interval   int
 	)
 
 	cmd := &cobra.Command{
 		Use:   "debug-requester",
 		Short: "Start calling HTTP requests and print status code",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runRequester(cmd.Context(), url, time.Duration(interval)*time.Millisecond)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runRequester(
+				cmd.Context(),
+				requestURL,
+				time.Duration(interval)*time.Millisecond,
+			)
 		},
 	}
 
-	cmd.Flags().StringVar(&url, "url", "", "URL to request")
-	cmd.Flags().IntVar(&interval, "interval", 500, "Ticker interval in milliseconds")
+	cmd.Flags().StringVar(
+		&requestURL, "url", "", "URL to request",
+	)
+	cmd.Flags().IntVar(
+		&interval,
+		"interval",
+		defaultIntervalMilliseconds,
+		"Ticker interval in milliseconds",
+	)
+
 	_ = cmd.MarkFlagRequired("url")
 
 	return cmd
@@ -34,14 +51,12 @@ func Command() *cobra.Command {
 func runRequester(ctx context.Context, rawURL string, interval time.Duration) error {
 	parsedURL, err := url.Parse(rawURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("parsing URL: %w", err)
 	}
 
-	client := &http.Client{
-		Timeout: 1 * time.Second,
-	}
+	transport := http.DefaultTransport
 
-	tick(ctx, client, parsedURL)
+	tick(ctx, transport, parsedURL)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -51,31 +66,36 @@ func runRequester(ctx context.Context, rawURL string, interval time.Duration) er
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			tick(ctx, client, parsedURL)
+			tick(ctx, transport, parsedURL)
 		}
 	}
 }
 
-func tick(ctx context.Context, client *http.Client, targetURL *url.URL) {
-	req := &http.Request{
-		Method: http.MethodGet,
-		URL:    targetURL,
-		Host:   targetURL.Host,
-	}
-	req = req.WithContext(ctx)
+func tick(ctx context.Context, transport http.RoundTripper, targetURL *url.URL) {
+	reqCtx, cancel := context.WithTimeout(ctx, time.Second)
+	defer cancel()
 
-	resp, err := client.Do(req)
+	request, err := http.NewRequestWithContext(reqCtx, http.MethodGet, targetURL.String(), nil)
+	if err != nil {
+		slog.Error("Failed to create request", "error", err)
+
+		return
+	}
+
+	response, err := transport.RoundTrip(request)
 	if err != nil {
 		slog.Error("Request error", "error", err)
-		return
-	}
-	_ = resp.Body.Close()
 
-	statusCode := resp.StatusCode
-	if statusCode != http.StatusOK {
-		slog.Error("Request failed", "status_code", statusCode)
 		return
 	}
 
-	slog.Info("Request successful", "status_code", statusCode)
+	_ = response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		slog.Error("Request failed")
+
+		return
+	}
+
+	slog.Info("Request successful")
 }

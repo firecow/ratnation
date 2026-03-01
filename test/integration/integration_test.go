@@ -209,7 +209,14 @@ func restartSubtest(t *testing.T, ctx context.Context, s *stack, name string, re
 	time.Sleep(pollInterval * 2)
 
 	t.Logf("%s restart: %d/%d requests failed", name, errors.Load(), total.Load())
-	require.Zero(t, errors.Load(), "%s restart caused %d errors out of %d requests", name, errors.Load(), total.Load())
+	require.Zero(
+		t,
+		errors.Load(),
+		"%s restart caused %d errors out of %d requests",
+		name,
+		errors.Load(),
+		total.Load(),
+	)
 }
 
 func restartStopFirst(t *testing.T, ctx context.Context, s *stack, name string) {
@@ -302,7 +309,11 @@ func specForContainer(name string) containerSpec {
 	return specs[name]
 }
 
-func startContainer(t *testing.T, ctx context.Context, spec containerSpec) testcontainers.Container {
+func startContainer(
+	t *testing.T,
+	ctx context.Context,
+	spec containerSpec,
+) testcontainers.Container {
 	t.Helper()
 
 	req := testcontainers.ContainerRequest{

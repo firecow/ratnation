@@ -1,3 +1,4 @@
+// Package main is the entry point for the burrow service mesh CLI.
 package main
 
 import (
@@ -36,8 +37,10 @@ func run() int {
 
 	root.SetContext(ctx)
 
-	if err := root.ExecuteContext(ctx); err != nil {
+	err := root.ExecuteContext(ctx)
+	if err != nil {
 		return 1
 	}
+
 	return 0
 }

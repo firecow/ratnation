@@ -3,37 +3,56 @@ package state
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/coder/websocket"
 )
 
+const (
+	pollInterval      = 5 * time.Second
+	waitCheckInterval = 100 * time.Millisecond
+	reconnectDelay    = 2 * time.Second
+	httpPrefix        = "http://"
+	httpsPrefix       = "https://"
+	wsPrefix          = "ws://"
+	wssPrefix         = "wss://"
+)
+
+// Watcher monitors council state via polling and WebSocket events.
 type Watcher struct {
-	councilHost string
-	state       *State
-	mu          sync.Mutex
-	onChange    func(*State)
+	councilHost   string
+	state         *State
+	mu            sync.Mutex
+	onChange      func(*State)
+	httpTransport http.RoundTripper
 }
 
+// NewWatcher creates a new Watcher that polls the given council host for state changes.
 func NewWatcher(councilHost string, onChange func(*State)) *Watcher {
 	return &Watcher{
-		councilHost: councilHost,
-		onChange:    onChange,
+		councilHost:   councilHost,
+		state:         nil,
+		mu:            sync.Mutex{},
+		onChange:      onChange,
+		httpTransport: http.DefaultTransport,
 	}
 }
 
+// Run starts polling and WebSocket listening for state changes.
 func (w *Watcher) Run(ctx context.Context) {
 	go w.listenWebSocket(ctx)
 
-	// Poll immediately on start
 	w.fetchState(ctx)
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(pollInterval)
+
 	defer ticker.Stop()
 
 	for {
@@ -46,17 +65,21 @@ func (w *Watcher) Run(ctx context.Context) {
 	}
 }
 
+// WaitForState blocks until the watcher has received its first state or the context is cancelled.
 func (w *Watcher) WaitForState(ctx context.Context) error {
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(waitCheckInterval)
+
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return fmt.Errorf("waiting for state: %w", ctx.Err())
 		case <-ticker.C:
 			w.mu.Lock()
 			hasState := w.state != nil
 			w.mu.Unlock()
+
 			if hasState {
 				return nil
 			}
@@ -64,53 +87,77 @@ func (w *Watcher) WaitForState(ctx context.Context) error {
 	}
 }
 
-func (w *Watcher) fetchState(ctx context.Context) {
-	baseURL, err := url.Parse(w.councilHost)
+func buildStateURL(councilHost string) (string, error) {
+	baseURL, err := url.Parse(councilHost)
 	if err != nil {
-		slog.Error("Failed to parse council host URL", "error", err)
+		return "", fmt.Errorf("parsing council host URL: %w", err)
+	}
+
+	return baseURL.JoinPath("/state").String(), nil
+}
+
+func (w *Watcher) fetchState(ctx context.Context) {
+	stateURL, err := buildStateURL(w.councilHost)
+	if err != nil {
+		slog.Error("Failed to build state URL", "error", err)
+
 		return
 	}
-	stateURL := baseURL.JoinPath("/state")
 
-	req := &http.Request{
-		Method: http.MethodGet,
-		URL:    stateURL,
-		Host:   stateURL.Host,
+	w.doFetchState(ctx, stateURL)
+}
+
+func (w *Watcher) doFetchState(ctx context.Context, stateURL string) {
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodGet, stateURL, nil,
+	)
+	if err != nil {
+		slog.Error("Failed to create state request", "error", err)
+
+		return
 	}
-	req = req.WithContext(ctx)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := w.httpTransport.RoundTrip(req)
 	if err != nil {
 		slog.Error("Failed to fetch state from council", "error", err)
+
 		return
 	}
+
 	defer func() { _ = resp.Body.Close() }()
 
-	statusCode := resp.StatusCode
-	if statusCode != http.StatusOK {
-		slog.Error("Failed to fetch state from council", "status_code", statusCode)
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("Failed to fetch state from council")
+
 		return
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		slog.Error("Failed to read state response", "error", err)
+
 		return
 	}
 
 	var newState State
-	if err := json.Unmarshal(body, &newState); err != nil {
-		slog.Error("Failed to parse state response", "error", err)
+
+	unmarshalErr := json.Unmarshal(body, &newState)
+	if unmarshalErr != nil {
+		slog.Error("Failed to parse state response", "error", unmarshalErr)
+
 		return
 	}
 
 	w.mu.Lock()
+
 	if w.state == nil || w.state.Revision != newState.Revision {
 		w.state = &newState
 		w.mu.Unlock()
 		w.onChange(&newState)
+
 		return
 	}
+
 	w.mu.Unlock()
 }
 
@@ -122,44 +169,60 @@ func (w *Watcher) listenWebSocket(ctx context.Context) {
 			return
 		}
 
-		conn, resp, err := websocket.Dial(ctx, wsURL, nil)
+		conn, resp, dialErr := websocket.Dial(ctx, wsURL, nil)
+
 		if resp != nil && resp.Body != nil {
 			_ = resp.Body.Close()
 		}
-		if err != nil {
-			slog.Error("WebSocket connection failed", "error", err)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-				continue
-			}
+
+		if dialErr != nil {
+			slog.Error("WebSocket connection failed", "error", dialErr)
+			w.waitForReconnect(ctx)
+
+			continue
 		}
 
 		slog.Info("WebSocket connected")
-
-		for {
-			_, message, err := conn.Read(ctx)
-			if err != nil {
-				slog.Info("WebSocket disconnected", "error", err)
-				break
-			}
-			if string(message) == "state-changed" {
-				slog.Info("State changed event received, force fetching")
-				w.fetchState(ctx)
-			}
-		}
+		w.readWebSocketMessages(ctx, conn)
 
 		_ = conn.CloseNow()
 	}
 }
 
-func httpToWS(url string) string {
-	if len(url) > 7 && url[:8] == "https://" {
-		return "wss://" + url[8:]
+func (w *Watcher) waitForReconnect(ctx context.Context) {
+	select {
+	case <-ctx.Done():
+	case <-time.After(reconnectDelay):
 	}
-	if len(url) > 6 && url[:7] == "http://" {
-		return "ws://" + url[7:]
+}
+
+func (w *Watcher) readWebSocketMessages(
+	ctx context.Context,
+	conn *websocket.Conn,
+) {
+	for {
+		_, message, err := conn.Read(ctx)
+		if err != nil {
+			slog.Info("WebSocket disconnected", "error", err)
+
+			break
+		}
+
+		if string(message) == "state-changed" {
+			slog.Info("State changed event received, force fetching")
+			w.fetchState(ctx)
+		}
 	}
-	return "ws://" + url
+}
+
+func httpToWS(rawURL string) string {
+	if after, found := strings.CutPrefix(rawURL, httpsPrefix); found {
+		return wssPrefix + after
+	}
+
+	if after, found := strings.CutPrefix(rawURL, httpPrefix); found {
+		return wsPrefix + after
+	}
+
+	return wsPrefix + rawURL
 }

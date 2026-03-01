@@ -1,10 +1,13 @@
+// Package ling provides the ling command and its supporting tunnel/proxy infrastructure.
 package ling
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,16 +18,33 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type tunnelConfig struct {
+const (
+	keyValueParts           = 2
+	finalSyncTimeout        = 2 * time.Second
+	shutdownGracePeriod     = 750 * time.Millisecond
+	quicErrorCodeCloseClean = 0
+)
+
+// TunnelConfig holds the configuration for a single tunnel.
+type TunnelConfig struct {
 	Name      string
 	LocalAddr string
 }
 
-type proxyConfig struct {
+// ProxyConfig holds the configuration for a single TCP proxy.
+type ProxyConfig struct {
 	Name     string
 	BindPort int
 }
 
+var (
+	errTunnelMissingName      = errors.New("--tunnel must have 'name' field")
+	errTunnelMissingLocalAddr = errors.New("--tunnel must have 'local_addr' field")
+	errProxyMissingName       = errors.New("--proxy must have 'name' field")
+	errProxyMissingBindPort   = errors.New("--proxy must have 'bind_port' field")
+)
+
+// Command returns the cobra command for the ling subcommand.
 func Command() *cobra.Command {
 	var (
 		councilHost       string
@@ -34,135 +54,248 @@ func Command() *cobra.Command {
 		preferredLocation string
 	)
 
-	cmd := &cobra.Command{
-		Use:   "ling",
-		Short: "Start ling",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			tunnelConfigs, err := parseTunnelArgs(tunnelArgs)
-			if err != nil {
-				return err
-			}
-			proxies, err := parseProxyArgs(proxyArgs)
-			if err != nil {
-				return err
-			}
-			if lingID == "" {
-				lingID = uuid.New().String()
-			}
-			return run(cmd.Context(), councilHost, lingID, preferredLocation, tunnelConfigs, proxies)
-		},
-	}
+	cmd := newLingCommand(
+		&councilHost, &lingID, &tunnelArgs,
+		&proxyArgs, &preferredLocation,
+	)
 
-	cmd.Flags().StringVar(&councilHost, "council-host", "http://localhost:8080", "Council host to synchronize from")
-	cmd.Flags().StringVar(&lingID, "ling-id", "", "Unique ID of this ling instance (auto-generates UUID if omitted)")
-	cmd.Flags().StringArrayVar(&tunnelArgs, "tunnel", nil, "Tunnel clients (name=STR local_addr=ADDR)")
-	cmd.Flags().StringArrayVar(&proxyArgs, "proxy", nil, "TCP proxies (name=STR bind_port=N)")
-	cmd.Flags().StringVar(&preferredLocation, "location", "default", "Preferred location identifier")
+	cmd.Flags().StringVar(
+		&councilHost, "council-host",
+		"http://localhost:8080", "Council host to synchronize from",
+	)
+	cmd.Flags().StringVar(
+		&lingID, "ling-id", "",
+		"Unique ID of this ling instance (auto-generates UUID if omitted)",
+	)
+	cmd.Flags().StringArrayVar(
+		&tunnelArgs, "tunnel", nil,
+		"Tunnel clients (name=STR local_addr=ADDR)",
+	)
+	cmd.Flags().StringArrayVar(
+		&proxyArgs, "proxy", nil,
+		"TCP proxies (name=STR bind_port=N)",
+	)
+	cmd.Flags().StringVar(
+		&preferredLocation, "location", "default",
+		"Preferred location identifier",
+	)
 
 	return cmd
 }
 
-func parseTunnelArgs(args []string) ([]tunnelConfig, error) {
-	if len(args) == 0 {
-		return nil, nil
-	}
-	configs := make([]tunnelConfig, 0, len(args))
-	for _, arg := range args {
-		pairs := make(map[string]string)
-		for pair := range strings.SplitSeq(arg, " ") {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				pairs[parts[0]] = parts[1]
+func newLingCommand(
+	councilHost, lingID *string,
+	tunnelArgs, proxyArgs *[]string,
+	preferredLocation *string,
+) *cobra.Command {
+	return &cobra.Command{
+		Use:   "ling",
+		Short: "Start ling",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			tunnelConfigs, err := ParseTunnelArgs(*tunnelArgs)
+			if err != nil {
+				return err
 			}
-		}
 
-		name, ok := pairs["name"]
-		if !ok {
-			return nil, fmt.Errorf("--tunnel must have 'name' field")
-		}
-		localAddr, ok := pairs["local_addr"]
-		if !ok {
-			return nil, fmt.Errorf("--tunnel must have 'local_addr' field")
-		}
+			proxies, err := ParseProxyArgs(*proxyArgs)
+			if err != nil {
+				return err
+			}
 
-		configs = append(configs, tunnelConfig{Name: name, LocalAddr: localAddr})
+			if *lingID == "" {
+				*lingID = uuid.New().String()
+			}
+
+			return run(
+				cmd.Context(), *councilHost, *lingID,
+				*preferredLocation, tunnelConfigs, proxies,
+			)
+		},
 	}
-	return configs, nil
 }
 
-func parseProxyArgs(args []string) ([]proxyConfig, error) {
+// ParseTunnelArgs parses raw tunnel argument strings into TunnelConfig slices.
+func ParseTunnelArgs(args []string) ([]TunnelConfig, error) {
 	if len(args) == 0 {
 		return nil, nil
 	}
-	configs := make([]proxyConfig, 0, len(args))
-	for _, arg := range args {
-		pairs := make(map[string]string)
-		for pair := range strings.SplitSeq(arg, " ") {
-			parts := strings.SplitN(pair, "=", 2)
-			if len(parts) == 2 {
-				pairs[parts[0]] = parts[1]
-			}
-		}
 
-		name, ok := pairs["name"]
-		if !ok {
-			return nil, fmt.Errorf("--proxy must have 'name' field")
-		}
-		bindPortStr, ok := pairs["bind_port"]
-		if !ok {
-			return nil, fmt.Errorf("--proxy must have 'bind_port' field")
-		}
-		bindPort, err := strconv.Atoi(bindPortStr)
+	configs := make([]TunnelConfig, 0, len(args))
+
+	for _, arg := range args {
+		config, err := parseSingleTunnelArg(arg)
 		if err != nil {
-			return nil, fmt.Errorf("invalid bind_port: %s", bindPortStr)
+			return nil, err
 		}
 
-		configs = append(configs, proxyConfig{Name: name, BindPort: bindPort})
+		configs = append(configs, config)
 	}
+
 	return configs, nil
 }
 
-func run(ctx context.Context, councilHost, lingID, preferredLocation string, tunnelConfigs []tunnelConfig, proxies []proxyConfig) error {
-	// Build tunnel name -> local_addr map
-	tunnelMap := make(map[string]string)
-	for _, r := range tunnelConfigs {
-		tunnelMap[r.Name] = r.LocalAddr
-	}
+func parseSingleTunnelArg(arg string) (TunnelConfig, error) {
+	pairs := make(map[string]string)
 
-	// Only tunnel services get registered with council (not proxy-only names)
-	syncTunnels := make([]syncTunnel, 0, len(tunnelConfigs))
-	for _, r := range tunnelConfigs {
-		syncTunnels = append(syncTunnels, syncTunnel{Name: r.Name})
-	}
-	if len(syncTunnels) == 0 {
-		syncTunnels = []syncTunnel{}
-	}
+	for pair := range strings.SplitSeq(arg, " ") {
+		parts := strings.SplitN(pair, "=", keyValueParts)
 
-	tunnelClient := newTunnelClient()
-	tcpProxies := make(map[string]*tcpProxy)
-
-	for _, p := range proxies {
-		proxy := newTCPProxy(p.Name, p.BindPort)
-		tcpProxies[p.Name] = proxy
-		if err := proxy.start(); err != nil {
-			return fmt.Errorf("failed to start proxy %s: %w", p.Name, err)
+		if len(parts) == keyValueParts {
+			pairs[parts[0]] = parts[1]
 		}
 	}
 
-	var mu sync.Mutex
+	name, nameFound := pairs["name"]
+	if !nameFound {
+		return TunnelConfig{Name: "", LocalAddr: ""}, errTunnelMissingName
+	}
+
+	localAddr, addrFound := pairs["local_addr"]
+	if !addrFound {
+		return TunnelConfig{Name: "", LocalAddr: ""}, errTunnelMissingLocalAddr
+	}
+
+	return TunnelConfig{Name: name, LocalAddr: localAddr}, nil
+}
+
+// ParseProxyArgs parses raw proxy argument strings into ProxyConfig slices.
+func ParseProxyArgs(args []string) ([]ProxyConfig, error) {
+	if len(args) == 0 {
+		return nil, nil
+	}
+
+	configs := make([]ProxyConfig, 0, len(args))
+
+	for _, arg := range args {
+		config, err := parseSingleProxyArg(arg)
+		if err != nil {
+			return nil, err
+		}
+
+		configs = append(configs, config)
+	}
+
+	return configs, nil
+}
+
+func parseSingleProxyArg(arg string) (ProxyConfig, error) {
+	pairs := make(map[string]string)
+
+	for pair := range strings.SplitSeq(arg, " ") {
+		parts := strings.SplitN(pair, "=", keyValueParts)
+
+		if len(parts) == keyValueParts {
+			pairs[parts[0]] = parts[1]
+		}
+	}
+
+	name, nameFound := pairs["name"]
+	if !nameFound {
+		return ProxyConfig{Name: "", BindPort: 0}, errProxyMissingName
+	}
+
+	bindPortStr, portFound := pairs["bind_port"]
+	if !portFound {
+		return ProxyConfig{Name: "", BindPort: 0}, errProxyMissingBindPort
+	}
+
+	bindPort, err := strconv.Atoi(bindPortStr)
+	if err != nil {
+		return ProxyConfig{Name: "", BindPort: 0}, fmt.Errorf("invalid bind_port: %w", err)
+	}
+
+	return ProxyConfig{Name: name, BindPort: bindPort}, nil
+}
+
+func run(
+	ctx context.Context,
+	councilHost, lingID, preferredLocation string,
+	tunnelConfigs []TunnelConfig,
+	proxies []ProxyConfig,
+) error {
+	tunnelMap := buildTunnelMap(tunnelConfigs)
+	syncTunnels := buildSyncTunnels(tunnelConfigs)
+	tunnelCli := NewTunnelClient()
+
+	tcpProxies, err := startProxies(ctx, proxies)
+	if err != nil {
+		return err
+	}
+
+	var stateMutex sync.Mutex
+
 	var currentState *state.State
+
 	shuttingDown := false
 
 	readyServiceIDs := func() []string {
-		mu.Lock()
-		defer mu.Unlock()
+		stateMutex.Lock()
+		defer stateMutex.Unlock()
+
 		if currentState == nil {
 			return []string{}
 		}
-		return computeReadyServiceIDs(currentState, lingID, tunnelMap)
+
+		return ComputeReadyServiceIDs(currentState, lingID, tunnelMap)
 	}
 
-	syncerInstance := &lingSyncer{
+	syncerInstance := buildSyncer(
+		councilHost, lingID, preferredLocation,
+		syncTunnels, readyServiceIDs, &stateMutex, &shuttingDown,
+	)
+
+	tunnelCli.onConnected = syncerInstance.triggerSync
+
+	watcher := state.NewWatcher(
+		councilHost,
+		func(stateSnapshot *state.State) {
+			stateMutex.Lock()
+			currentState = stateSnapshot
+			stateMutex.Unlock()
+
+			OnStateChanged(
+				ctx, stateSnapshot, lingID,
+				tunnelMap, tunnelCli, tcpProxies,
+			)
+		},
+	)
+
+	return runEventLoop(
+		ctx, watcher, syncerInstance,
+		&stateMutex, &shuttingDown, tunnelCli, tcpProxies,
+	)
+}
+
+func startProxies(
+	ctx context.Context,
+	proxies []ProxyConfig,
+) (map[string]*TCPProxy, error) {
+	tcpProxies := make(map[string]*TCPProxy)
+
+	for _, proxyConf := range proxies {
+		proxy := NewTCPProxy(proxyConf.Name, proxyConf.BindPort)
+		tcpProxies[proxyConf.Name] = proxy
+
+		err := proxy.start(ctx)
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to start proxy %s: %w",
+				proxyConf.Name, err,
+			)
+		}
+	}
+
+	return tcpProxies, nil
+}
+
+func buildSyncer(
+	councilHost, lingID, preferredLocation string,
+	syncTunnels []syncTunnel,
+	readyServiceIDs func() []string,
+	stateMutex *sync.Mutex,
+	shuttingDown *bool,
+) *lingSyncer {
+	return &lingSyncer{
 		councilHost:       councilHost,
 		lingID:            lingID,
 		preferredLocation: preferredLocation,
@@ -170,190 +303,326 @@ func run(ctx context.Context, councilHost, lingID, preferredLocation string, tun
 		readyServiceIDs:   readyServiceIDs,
 		notify:            make(chan struct{}, 1),
 		shuttingDown: func() bool {
-			mu.Lock()
-			defer mu.Unlock()
-			return shuttingDown
+			stateMutex.Lock()
+			defer stateMutex.Unlock()
+
+			return *shuttingDown
 		},
+		httpTransport: http.DefaultTransport,
 	}
+}
 
-	tunnelClient.onConnected = syncerInstance.triggerSync
-
-	watcher := state.NewWatcher(councilHost, func(s *state.State) {
-		mu.Lock()
-		currentState = s
-		mu.Unlock()
-		onStateChanged(ctx, s, lingID, tunnelMap, tunnelClient, tcpProxies)
-	})
-
+func runEventLoop(
+	ctx context.Context,
+	watcher *state.Watcher,
+	syncerInstance *lingSyncer,
+	stateMutex *sync.Mutex,
+	shuttingDown *bool,
+	tunnelCli *TunnelClient,
+	tcpProxies map[string]*TCPProxy,
+) error {
 	watcherCtx, watcherCancel := context.WithCancel(ctx)
 	defer watcherCancel()
+
 	go watcher.Run(watcherCtx)
 
-	if err := watcher.WaitForState(ctx); err != nil {
-		return err
+	err := watcher.WaitForState(ctx)
+	if err != nil {
+		return fmt.Errorf("waiting for initial state: %w", err)
 	}
 
 	syncerCtx, syncerCancel := context.WithCancel(ctx)
 	defer syncerCancel()
+
 	go syncerInstance.run(syncerCtx)
 
 	slog.Info("Ready")
 
 	<-ctx.Done()
 
-	slog.Info("Shutdown sequence initiated")
-	mu.Lock()
-	shuttingDown = true
-	mu.Unlock()
-
-	watcherCancel()
-	syncerCancel()
-
-	// Final sync to broadcast shutting_down=true
-	finalCtx, finalCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer finalCancel()
-	syncerInstance.sync(finalCtx)
-
-	// Wait for kings to notice
-	time.Sleep(750 * time.Millisecond)
-
-	tunnelClient.closeAll()
-	for _, proxy := range tcpProxies {
-		proxy.close()
-	}
+	performShutdown(
+		ctx, syncerInstance, stateMutex,
+		shuttingDown, watcherCancel, syncerCancel,
+		tunnelCli, tcpProxies,
+	)
 
 	return nil
 }
 
-func computeReadyServiceIDs(s *state.State, lingID string, tunnelMap map[string]string) []string {
-	ids := make([]string, 0, len(s.Services))
-	for _, svc := range s.Services {
+func performShutdown(
+	ctx context.Context,
+	syncerInstance *lingSyncer,
+	stateMutex *sync.Mutex,
+	shuttingDown *bool,
+	watcherCancel, syncerCancel context.CancelFunc,
+	tunnelCli *TunnelClient,
+	tcpProxies map[string]*TCPProxy,
+) {
+	slog.Info("Shutdown sequence initiated")
+
+	stateMutex.Lock()
+	*shuttingDown = true
+	stateMutex.Unlock()
+
+	watcherCancel()
+	syncerCancel()
+
+	finalCtx, finalCancel := context.WithTimeout(ctx, finalSyncTimeout)
+	defer finalCancel()
+
+	syncerInstance.sync(finalCtx)
+	time.Sleep(shutdownGracePeriod)
+
+	tunnelCli.closeAll()
+
+	for _, proxy := range tcpProxies {
+		proxy.close()
+	}
+}
+
+func buildTunnelMap(tunnelConfigs []TunnelConfig) map[string]string {
+	tunnelMap := make(map[string]string)
+
+	for _, tunnelCfg := range tunnelConfigs {
+		tunnelMap[tunnelCfg.Name] = tunnelCfg.LocalAddr
+	}
+
+	return tunnelMap
+}
+
+func buildSyncTunnels(tunnelConfigs []TunnelConfig) []syncTunnel {
+	syncTunnels := make([]syncTunnel, 0, len(tunnelConfigs))
+
+	for _, tunnelCfg := range tunnelConfigs {
+		syncTunnels = append(syncTunnels, syncTunnel{Name: tunnelCfg.Name})
+	}
+
+	if len(syncTunnels) == 0 {
+		syncTunnels = []syncTunnel{}
+	}
+
+	return syncTunnels
+}
+
+// ComputeReadyServiceIDs returns service IDs that are ready for the given ling.
+func ComputeReadyServiceIDs(
+	stateSnapshot *state.State,
+	lingID string,
+	tunnelMap map[string]string,
+) []string {
+	ids := make([]string, 0, len(stateSnapshot.Services))
+
+	for _, svc := range stateSnapshot.Services {
 		if svc.LingID != lingID {
 			continue
 		}
-		if _, ok := tunnelMap[svc.Name]; !ok {
+
+		_, hasTunnel := tunnelMap[svc.Name]
+		if !hasTunnel {
 			continue
 		}
+
 		if svc.KingReady {
 			ids = append(ids, svc.ServiceID)
 		}
 	}
+
 	return ids
 }
 
-func onStateChanged(ctx context.Context, s *state.State, lingID string, tunnelMap map[string]string, tc *tunnelClient, tcpProxies map[string]*tcpProxy) {
-	kings := buildKingIndex(s)
-	updateTunnelConnections(ctx, s, lingID, tunnelMap, tc, kings)
-	updateProxyTargets(s, tcpProxies, kings)
+// OnStateChanged handles a state change by updating tunnel connections and proxy targets.
+func OnStateChanged(
+	ctx context.Context,
+	stateSnapshot *state.State,
+	lingID string,
+	tunnelMap map[string]string,
+	tunnelCli *TunnelClient,
+	tcpProxies map[string]*TCPProxy,
+) {
+	kings := buildKingIndex(stateSnapshot)
+	updateTunnelConnections(ctx, stateSnapshot, lingID, tunnelMap, tunnelCli, kings)
+	updateProxyTargets(stateSnapshot, tcpProxies, kings)
 }
 
-type kingGroup struct {
+// KingGroup holds the connection details for a group of services on a single king.
+type KingGroup struct {
 	host     string
 	bindPort int
 	certPEM  string
-	services []tunnelService
+	services []TunnelService
 }
 
-type kingIndex struct {
+// KingIndex stores health and certificate info for a king address.
+type KingIndex struct {
 	healthy bool
 	certPEM string
 }
 
-func buildKingIndex(s *state.State) map[string]kingIndex {
-	index := make(map[string]kingIndex, len(s.Kings))
-	for _, king := range s.Kings {
+func buildKingIndex(stateSnapshot *state.State) map[string]KingIndex {
+	index := make(map[string]KingIndex, len(stateSnapshot.Kings))
+
+	for _, king := range stateSnapshot.Kings {
 		addr := net.JoinHostPort(king.Host, strconv.Itoa(king.BindPort))
-		index[addr] = kingIndex{healthy: !king.ShuttingDown, certPEM: king.CertPEM}
+		index[addr] = KingIndex{healthy: !king.ShuttingDown, certPEM: king.CertPEM}
 	}
+
 	return index
 }
 
-func buildHealthyLingSet(s *state.State) map[string]bool {
-	set := make(map[string]bool, len(s.Lings))
-	for _, ling := range s.Lings {
-		if !ling.ShuttingDown {
-			set[ling.LingID] = true
+func buildHealthyLingSet(stateSnapshot *state.State) map[string]bool {
+	set := make(map[string]bool, len(stateSnapshot.Lings))
+
+	for _, lingEntry := range stateSnapshot.Lings {
+		if !lingEntry.ShuttingDown {
+			set[lingEntry.LingID] = true
 		}
 	}
+
 	return set
 }
 
-func updateTunnelConnections(ctx context.Context, s *state.State, lingID string, tunnelMap map[string]string, tc *tunnelClient, kings map[string]kingIndex) {
-	groups := make(map[string]*kingGroup)
+func buildTunnelGroups(
+	stateSnapshot *state.State,
+	lingID string,
+	tunnelMap map[string]string,
+	kings map[string]KingIndex,
+) (map[string]*KingGroup, map[string]string) {
+	groups := make(map[string]*KingGroup)
 	localAddrs := make(map[string]string)
 
-	for _, svc := range s.Services {
+	for _, svc := range stateSnapshot.Services {
 		if svc.LingID != lingID {
 			continue
 		}
+
 		localAddr, isTunnel := tunnelMap[svc.Name]
 		if !isTunnel || svc.BindPort == nil || svc.Host == nil {
 			continue
 		}
 
 		kingAddr := net.JoinHostPort(*svc.Host, strconv.Itoa(*svc.BindPort))
+
 		king, exists := kings[kingAddr]
 		if !exists || !king.healthy {
 			continue
 		}
 
 		if groups[kingAddr] == nil {
-			groups[kingAddr] = &kingGroup{
+			groups[kingAddr] = &KingGroup{
 				host:     *svc.Host,
 				bindPort: *svc.BindPort,
 				certPEM:  king.certPEM,
+				services: nil,
 			}
 		}
-		groups[kingAddr].services = append(groups[kingAddr].services, tunnelService{
-			serviceID: svc.ServiceID,
-			token:     svc.Token,
-			localAddr: localAddr,
-		})
+
+		groups[kingAddr].services = append(
+			groups[kingAddr].services,
+			TunnelService{
+				serviceID: svc.ServiceID,
+				token:     svc.Token,
+				localAddr: localAddr,
+			},
+		)
 		localAddrs[svc.ServiceID] = localAddr
 	}
 
-	for _, group := range groups {
-		tc.ensureConnection(ctx, group, localAddrs)
-	}
-
-	tc.mu.Lock()
-	for addr := range tc.connections {
-		if _, needed := groups[addr]; !needed {
-			_ = tc.connections[addr].CloseWithError(0, "no longer needed")
-			delete(tc.connections, addr)
-		}
-	}
-	tc.mu.Unlock()
+	return groups, localAddrs
 }
 
-func updateProxyTargets(s *state.State, tcpProxies map[string]*tcpProxy, kings map[string]kingIndex) {
-	healthyLings := buildHealthyLingSet(s)
+func updateTunnelConnections(
+	ctx context.Context,
+	stateSnapshot *state.State,
+	lingID string,
+	tunnelMap map[string]string,
+	tunnelCli *TunnelClient,
+	kings map[string]KingIndex,
+) {
+	groups, localAddrs := buildTunnelGroups(
+		stateSnapshot, lingID, tunnelMap, kings,
+	)
+
+	for _, group := range groups {
+		tunnelCli.ensureConnection(ctx, group, localAddrs)
+	}
+
+	tunnelCli.mu.Lock()
+
+	for addr := range tunnelCli.connections {
+		if _, needed := groups[addr]; !needed {
+			_ = tunnelCli.connections[addr].CloseWithError(
+				quicErrorCodeCloseClean, "no longer needed",
+			)
+
+			delete(tunnelCli.connections, addr)
+		}
+	}
+
+	tunnelCli.mu.Unlock()
+}
+
+func updateProxyTargets(
+	stateSnapshot *state.State,
+	tcpProxies map[string]*TCPProxy,
+	kings map[string]KingIndex,
+) {
+	healthyLings := buildHealthyLingSet(stateSnapshot)
 
 	for proxyName, proxy := range tcpProxies {
-		targets := make([]proxyTarget, 0, len(s.Services))
-		for _, svc := range s.Services {
-			if svc.Name != proxyName || svc.Host == nil || svc.RemotePort == nil {
-				continue
-			}
-			if !svc.LingReady || !svc.KingReady {
-				continue
-			}
-			if !healthyLings[svc.LingID] {
-				continue
-			}
-			if svc.BindPort == nil {
-				continue
-			}
-			kingAddr := net.JoinHostPort(*svc.Host, strconv.Itoa(*svc.BindPort))
-			if king, exists := kings[kingAddr]; !exists || !king.healthy {
-				continue
-			}
-
-			targets = append(targets, proxyTarget{
-				host:       *svc.Host,
-				remotePort: *svc.RemotePort,
-			})
-		}
+		targets := collectProxyTargets(
+			stateSnapshot, proxyName, healthyLings, kings,
+		)
 		proxy.updateTargets(targets)
 	}
+}
+
+func isServiceEligibleForProxy(
+	svc state.Service,
+	proxyName string,
+	healthyLings map[string]bool,
+	kings map[string]KingIndex,
+) bool {
+	if svc.Name != proxyName || svc.Host == nil || svc.RemotePort == nil {
+		return false
+	}
+
+	if !svc.LingReady || !svc.KingReady {
+		return false
+	}
+
+	if !healthyLings[svc.LingID] {
+		return false
+	}
+
+	if svc.BindPort == nil {
+		return false
+	}
+
+	kingAddr := net.JoinHostPort(*svc.Host, strconv.Itoa(*svc.BindPort))
+
+	king, exists := kings[kingAddr]
+
+	return exists && king.healthy
+}
+
+func collectProxyTargets(
+	stateSnapshot *state.State,
+	proxyName string,
+	healthyLings map[string]bool,
+	kings map[string]KingIndex,
+) []ProxyTarget {
+	targets := make([]ProxyTarget, 0, len(stateSnapshot.Services))
+
+	for _, svc := range stateSnapshot.Services {
+		if !isServiceEligibleForProxy(svc, proxyName, healthyLings, kings) {
+			continue
+		}
+
+		targets = append(targets, ProxyTarget{
+			host:       *svc.Host,
+			remotePort: *svc.RemotePort,
+		})
+	}
+
+	return targets
 }

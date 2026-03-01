@@ -1,7 +1,37 @@
 version: "2"
 
 formatters:
-  enable-all: true
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
 
 linters:
-  enable-all: true
+  default: all
+  settings:
+    depguard:
+      rules:
+        Main:
+          allow:
+            - $gostd
+            - github.com/coder/websocket
+            - github.com/firecow/burrow
+            - github.com/google/uuid
+            - github.com/quic-go/quic-go
+            - github.com/spf13/cobra
+            - github.com/stretchr/testify
+            - github.com/testcontainers/testcontainers-go
+    exhaustruct:
+      exclude:
+        - github.com/spf13/cobra\.Command
+        - github.com/spf13/cobra\.CompletionOptions
+        - crypto/tls\.Config
+        - crypto/tls\.Certificate
+        - crypto/x509\.Certificate
+        - encoding/pem\.Block
+        - net/http\.Request
+        - net\.KeepAliveConfig
+        - github.com/quic-go/quic-go\.Config
+        - net/url\.URL

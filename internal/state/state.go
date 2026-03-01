@@ -1,37 +1,42 @@
+// Package state provides types and utilities for managing council state.
 package state
 
+// State represents the full council state including services, kings, and lings.
 type State struct {
-	Revision int            `json:"revision"`
-	Services []StateService `json:"services"`
-	Kings    []StateKing    `json:"kings"`
-	Lings    []StateLing    `json:"lings"`
+	Revision int       `json:"revision"`
+	Services []Service `json:"services"`
+	Kings    []King    `json:"kings"`
+	Lings    []Ling    `json:"lings"`
 }
 
-type StateKing struct {
-	BindPort     int    `json:"bind_port"`
+// King represents a king node in the council state.
+type King struct {
+	BindPort     int    `json:"bindPort"`
 	Host         string `json:"host"`
 	Ports        string `json:"ports"`
-	ShuttingDown bool   `json:"shutting_down"`
+	ShuttingDown bool   `json:"shuttingDown"`
 	Beat         int64  `json:"beat"`
 	Location     string `json:"location"`
-	CertPEM      string `json:"cert_pem,omitempty"`
+	CertPEM      string `json:"certPem,omitempty"`
 }
 
-type StateLing struct {
-	LingID       string `json:"ling_id"`
-	ShuttingDown bool   `json:"shutting_down"`
+// Ling represents a ling node in the council state.
+type Ling struct {
+	LingID       string `json:"lingId"`
+	ShuttingDown bool   `json:"shuttingDown"`
 	Beat         int64  `json:"beat"`
 }
 
-type StateService struct {
+// Service represents a service entry in the council state.
+type Service struct {
 	Name              string  `json:"name"`
 	Token             string  `json:"token"`
-	ServiceID         string  `json:"service_id"`
-	LingID            string  `json:"ling_id"`
-	PreferredLocation string  `json:"preferred_location"`
-	LingReady         bool    `json:"ling_ready"`
-	KingReady         bool    `json:"king_ready"`
+	ServiceID         string  `json:"serviceId"`
+	LingID            string  `json:"lingId"`
+	PreferredLocation string  `json:"preferredLocation"`
+	LingReady         bool    `json:"lingReady"`
+	KingReady         bool    `json:"kingReady"`
 	Host              *string `json:"host"`
-	BindPort          *int    `json:"bind_port"`
-	RemotePort        *int    `json:"remote_port"`
+	BindPort          *int    `json:"bindPort"`
+	RemotePort        *int    `json:"remotePort"`
 }
