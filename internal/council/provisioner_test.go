@@ -568,3 +568,101 @@ func TestProvision_NoReprovisioning_WhenNoAvailableKing(t *testing.T) {
 		t.Fatalf("expected KingReady to be false")
 	}
 }
+
+func newTestKingWithLocation(
+	host, ports string, bindPort int, shuttingDown bool, location string,
+) state.King {
+	return state.King{
+		BindPort:     bindPort,
+		Host:         host,
+		Ports:        ports,
+		ShuttingDown: shuttingDown,
+		Beat:         0,
+		Location:     location,
+		CertPEM:      "",
+	}
+}
+
+func TestProvisionService_PrefersMatchingLocation(t *testing.T) {
+	t.Parallel()
+
+	currentState := &state.State{
+		Revision: 0,
+		Kings: []state.King{
+			newTestKingWithLocation(testHostA, "5000-5001", 2333, false, "us-east"),
+			newTestKingWithLocation(testHostB, "6000-6001", 2334, false, "eu-west"),
+		},
+		Services: []state.Service{
+			{
+				ServiceID:         "svc-1",
+				Name:              "alpha",
+				Token:             "",
+				LingID:            "",
+				PreferredLocation: "eu-west",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
+			},
+		},
+		Lings: nil,
+	}
+
+	council.ProvisionService(currentState, &currentState.Services[0])
+
+	svc := currentState.Services[0]
+	assertServiceHost(t, svc, testHostB)
+	assertServiceBindPort(t, svc, 2334)
+	assertServiceRemotePort(t, svc, 6000)
+}
+
+func TestProvisionService_FallsBackWhenPreferredLocationFull(t *testing.T) {
+	t.Parallel()
+
+	hostB := testHostB
+	bindPortB := 2334
+	port6000 := 6000
+
+	currentState := &state.State{
+		Revision: 0,
+		Kings: []state.King{
+			newTestKingWithLocation(testHostA, "5000-5001", 2333, false, "us-east"),
+			newTestKingWithLocation(testHostB, "6000-6000", 2334, false, "eu-west"),
+		},
+		Services: []state.Service{
+			{
+				ServiceID:         "existing",
+				Name:              "existing",
+				Token:             "",
+				LingID:            "",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              &hostB,
+				BindPort:          &bindPortB,
+				RemotePort:        &port6000,
+			},
+			{
+				ServiceID:         "svc-1",
+				Name:              "alpha",
+				Token:             "",
+				LingID:            "",
+				PreferredLocation: "eu-west",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
+			},
+		},
+		Lings: nil,
+	}
+
+	council.ProvisionService(currentState, &currentState.Services[1])
+
+	svc := currentState.Services[1]
+	assertServiceHost(t, svc, testHostA)
+	assertServiceBindPort(t, svc, 2333)
+	assertServiceRemotePort(t, svc, 5000)
+}

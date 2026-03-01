@@ -253,7 +253,7 @@ func run(
 			stateMutex.Unlock()
 
 			OnStateChanged(
-				ctx, stateSnapshot, lingID,
+				ctx, stateSnapshot, lingID, preferredLocation,
 				tunnelMap, tunnelCli, tcpProxies,
 			)
 		},
@@ -435,13 +435,14 @@ func OnStateChanged(
 	ctx context.Context,
 	stateSnapshot *state.State,
 	lingID string,
+	preferredLocation string,
 	tunnelMap map[string]string,
 	tunnelCli *TunnelClient,
 	tcpProxies map[string]*TCPProxy,
 ) {
 	kings := buildKingIndex(stateSnapshot)
 	updateTunnelConnections(ctx, stateSnapshot, lingID, tunnelMap, tunnelCli, kings)
-	updateProxyTargets(stateSnapshot, tcpProxies, kings)
+	updateProxyTargets(stateSnapshot, preferredLocation, tcpProxies, kings)
 }
 
 // KingGroup holds the connection details for a group of services on a single king.
@@ -454,8 +455,9 @@ type KingGroup struct {
 
 // KingIndex stores health and certificate info for a king address.
 type KingIndex struct {
-	healthy bool
-	certPEM string
+	healthy  bool
+	certPEM  string
+	location string
 }
 
 func buildKingIndex(stateSnapshot *state.State) map[string]KingIndex {
@@ -463,7 +465,7 @@ func buildKingIndex(stateSnapshot *state.State) map[string]KingIndex {
 
 	for _, king := range stateSnapshot.Kings {
 		addr := net.JoinHostPort(king.Host, strconv.Itoa(king.BindPort))
-		index[addr] = KingIndex{healthy: !king.ShuttingDown, certPEM: king.CertPEM}
+		index[addr] = KingIndex{healthy: !king.ShuttingDown, certPEM: king.CertPEM, location: king.Location}
 	}
 
 	return index
@@ -551,12 +553,13 @@ func updateTunnelConnections(
 
 func updateProxyTargets(
 	stateSnapshot *state.State,
+	preferredLocation string,
 	tcpProxies map[string]*TCPProxy,
 	kings map[string]KingIndex,
 ) {
 	for proxyName, proxy := range tcpProxies {
 		targets := collectProxyTargets(
-			stateSnapshot, proxyName, kings,
+			stateSnapshot, proxyName, preferredLocation, kings,
 		)
 		proxy.updateTargets(targets)
 	}
@@ -589,20 +592,35 @@ func isServiceEligibleForProxy(
 func collectProxyTargets(
 	stateSnapshot *state.State,
 	proxyName string,
+	preferredLocation string,
 	kings map[string]KingIndex,
 ) []ProxyTarget {
-	targets := make([]ProxyTarget, 0, len(stateSnapshot.Services))
+	var allTargets []ProxyTarget
+	var preferredTargets []ProxyTarget
 
 	for _, svc := range stateSnapshot.Services {
 		if !isServiceEligibleForProxy(svc, proxyName, kings) {
 			continue
 		}
 
-		targets = append(targets, ProxyTarget{
+		target := ProxyTarget{
 			host:       *svc.Host,
 			remotePort: *svc.RemotePort,
-		})
+		}
+
+		allTargets = append(allTargets, target)
+
+		if preferredLocation != "" {
+			kingAddr := net.JoinHostPort(*svc.Host, strconv.Itoa(*svc.BindPort))
+			if king, exists := kings[kingAddr]; exists && king.location == preferredLocation {
+				preferredTargets = append(preferredTargets, target)
+			}
+		}
 	}
 
-	return targets
+	if len(preferredTargets) > 0 {
+		return preferredTargets
+	}
+
+	return allTargets
 }

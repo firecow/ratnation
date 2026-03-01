@@ -445,7 +445,7 @@ func TestOnStateChanged_UpdatesProxyTargets(t *testing.T) {
 
 	ling.OnStateChanged(
 		context.Background(), stateSnapshot,
-		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+		"other-ling", "", map[string]string{}, tunnelCli, tcpProxies,
 	)
 
 	targets := proxy.ReadTargets()
@@ -474,7 +474,7 @@ func TestOnStateChanged_IncludesShuttingDownLing(t *testing.T) {
 
 	ling.OnStateChanged(
 		context.Background(), stateSnapshot,
-		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+		"other-ling", "", map[string]string{}, tunnelCli, tcpProxies,
 	)
 
 	targets := proxy.ReadTargets()
@@ -503,7 +503,7 @@ func TestOnStateChanged_ExcludesShuttingDownKing(t *testing.T) {
 
 	ling.OnStateChanged(
 		context.Background(), stateSnapshot,
-		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+		"other-ling", "", map[string]string{}, tunnelCli, tcpProxies,
 	)
 
 	targets := proxy.ReadTargets()
@@ -532,7 +532,7 @@ func TestOnStateChanged_ExcludesNotReady(t *testing.T) {
 
 	ling.OnStateChanged(
 		context.Background(), stateSnapshot,
-		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+		"other-ling", "", map[string]string{}, tunnelCli, tcpProxies,
 	)
 
 	targets := proxy.ReadTargets()
@@ -561,12 +561,114 @@ func TestOnStateChanged_ExcludesMissingHostOrPort(t *testing.T) {
 
 	ling.OnStateChanged(
 		context.Background(), stateSnapshot,
-		"other-ling", map[string]string{}, tunnelCli, tcpProxies,
+		"other-ling", "", map[string]string{}, tunnelCli, tcpProxies,
 	)
 
 	targets := proxy.ReadTargets()
 
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (nil host/port), got %d", len(targets))
+	}
+}
+
+func buildLocationState() *state.State {
+	hostA := "10.0.0.1"
+	hostB := "10.0.0.2"
+	bindPortA := 5000
+	bindPortB := 5001
+	remotePortA := 12345
+	remotePortB := 12346
+
+	return &state.State{
+		Revision: 0,
+		Kings: []state.King{
+			{
+				BindPort:     bindPortA,
+				Host:         hostA,
+				Ports:        "",
+				ShuttingDown: false,
+				Beat:         0,
+				Location:     "eu-west",
+				CertPEM:      "",
+			},
+			{
+				BindPort:     bindPortB,
+				Host:         hostB,
+				Ports:        "",
+				ShuttingDown: false,
+				Beat:         0,
+				Location:     "us-east",
+				CertPEM:      "",
+			},
+		},
+		Services: []state.Service{
+			{
+				ServiceID:         "svc-1",
+				Name:              "myproxy",
+				Token:             "",
+				LingID:            "ling-a",
+				PreferredLocation: "",
+				LingReady:         true,
+				KingReady:         true,
+				Host:              &hostA,
+				BindPort:          &bindPortA,
+				RemotePort:        &remotePortA,
+			},
+			{
+				ServiceID:         "svc-2",
+				Name:              "myproxy",
+				Token:             "",
+				LingID:            "ling-b",
+				PreferredLocation: "",
+				LingReady:         true,
+				KingReady:         true,
+				Host:              &hostB,
+				BindPort:          &bindPortB,
+				RemotePort:        &remotePortB,
+			},
+		},
+		Lings: nil,
+	}
+}
+
+func TestOnStateChanged_PrefersLocationTargets(t *testing.T) {
+	t.Parallel()
+
+	stateSnapshot := buildLocationState()
+
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
+
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", "eu-west", map[string]string{}, tunnelCli, tcpProxies,
+	)
+
+	targets := proxy.ReadTargets()
+
+	if len(targets) != 1 {
+		t.Fatalf("expected 1 target (preferred location), got %d", len(targets))
+	}
+}
+
+func TestOnStateChanged_FallsBackWhenNoPreferredLocationTargets(t *testing.T) {
+	t.Parallel()
+
+	stateSnapshot := buildLocationState()
+
+	proxy := ling.NewTCPProxy("myproxy", 0)
+	tcpProxies := map[string]*ling.TCPProxy{"myproxy": proxy}
+	tunnelCli := ling.NewTunnelClient()
+
+	ling.OnStateChanged(
+		context.Background(), stateSnapshot,
+		"other-ling", "ap-south", map[string]string{}, tunnelCli, tcpProxies,
+	)
+
+	targets := proxy.ReadTargets()
+
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 targets (fallback to all), got %d", len(targets))
 	}
 }
