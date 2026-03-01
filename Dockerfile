@@ -1,4 +1,4 @@
-FROM golang:1.24.4-alpine AS builder
+FROM golang:1.26.0-alpine3.23 AS builder
 
 WORKDIR /build
 
@@ -8,7 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o burrow ./cmd/burrow
 
-FROM alpine:3.21.3
+FROM alpine:3.23.0
 
 RUN apk add --no-cache ca-certificates
 
