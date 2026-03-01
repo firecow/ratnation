@@ -195,7 +195,47 @@ func echoServer(listener net.Listener, name string) {
 	}
 }
 
-func TestTCPProxy_UpdateTargets_ClosesRemovedUpstreams(t *testing.T) {
+func TestTCPProxy_UpdateTargets_PreservesInFlightConnections(t *testing.T) {
+	t.Parallel()
+
+	proxy := ling.NewTCPProxy("test", 0)
+
+	server, client := net.Pipe()
+
+	defer func() { _ = server.Close() }()
+
+	defer func() { _ = client.Close() }()
+
+	proxy.TestTrackUpstream(testTargetAddr, client)
+
+	proxy.TestUpdateTargets([]ling.ProxyTarget{
+		ling.NewProxyTarget(testTargetHost, testTargetPort),
+	})
+
+	proxy.TestUpdateTargets(nil)
+
+	go func() {
+		_, _ = server.Write([]byte("ping"))
+	}()
+
+	_ = client.SetReadDeadline(time.Now().Add(time.Second))
+
+	buf := make([]byte, pingBufferSize)
+
+	bytesRead, err := client.Read(buf)
+	if err != nil {
+		t.Fatalf(
+			"expected in-flight connection to remain readable: %v",
+			err,
+		)
+	}
+
+	if string(buf[:bytesRead]) != "ping" {
+		t.Errorf("expected 'ping', got %q", string(buf[:bytesRead]))
+	}
+}
+
+func TestTCPProxy_Close_ClosesUpstreams(t *testing.T) {
 	t.Parallel()
 
 	proxy := ling.NewTCPProxy("test", 0)
@@ -206,119 +246,11 @@ func TestTCPProxy_UpdateTargets_ClosesRemovedUpstreams(t *testing.T) {
 
 	proxy.TestTrackUpstream(testTargetAddr, client)
 
-	count := proxy.TestUpstreamCount(testTargetAddr)
-	if count != 1 {
-		t.Fatalf("expected 1 tracked upstream, got %d", count)
-	}
-
-	proxy.TestUpdateTargets([]ling.ProxyTarget{
-		ling.NewProxyTarget(testTargetHost, testTargetPort),
-	})
-
-	proxy.TestUpdateTargets(nil)
-
-	remaining := proxy.TestUpstreamCount(testTargetAddr)
-	if remaining != 0 {
-		t.Errorf(
-			"expected upstream entry to be removed, got %d connections",
-			remaining,
-		)
-	}
+	proxy.TestClose()
 
 	_, err := client.Write([]byte("test"))
 	if err == nil {
 		t.Error("expected write to closed connection to fail")
-	}
-}
-
-func TestTCPProxy_UpdateTargets_KeepsRemainingUpstreams(t *testing.T) {
-	t.Parallel()
-
-	proxy := ling.NewTCPProxy("test", 0)
-
-	keepServer, keepClient := net.Pipe()
-
-	defer func() { _ = keepServer.Close() }()
-
-	defer func() { _ = keepClient.Close() }()
-
-	removeServer, removeClient := net.Pipe()
-
-	defer func() { _ = removeServer.Close() }()
-
-	setupAndRemoveTarget(t, proxy, keepClient, removeClient)
-	verifyRemovedConnection(t, removeServer)
-	verifyKeptConnection(t, keepServer, keepClient)
-}
-
-func setupAndRemoveTarget(
-	t *testing.T,
-	proxy *ling.TCPProxy,
-	keepClient, removeClient net.Conn,
-) {
-	t.Helper()
-
-	proxy.TestTrackUpstream(testTargetAddr, keepClient)
-	proxy.TestTrackUpstream(testTargetAddr2, removeClient)
-
-	proxy.TestUpdateTargets([]ling.ProxyTarget{
-		ling.NewProxyTarget(testTargetHost, testTargetPort),
-		ling.NewProxyTarget(testTargetHost2, testTargetPort),
-	})
-
-	proxy.TestUpdateTargets([]ling.ProxyTarget{
-		ling.NewProxyTarget(testTargetHost, testTargetPort),
-	})
-
-	keptCount := proxy.TestUpstreamCount(testTargetAddr)
-	removedCount := proxy.TestUpstreamCount(testTargetAddr2)
-
-	if keptCount != 1 {
-		t.Errorf("expected 1 upstream for kept target, got %d", keptCount)
-	}
-
-	if removedCount != 0 {
-		t.Errorf(
-			"expected 0 upstreams for removed target, got %d",
-			removedCount,
-		)
-	}
-}
-
-func verifyRemovedConnection(t *testing.T, removeServer net.Conn) {
-	t.Helper()
-
-	_ = removeServer.SetReadDeadline(time.Now().Add(time.Second))
-
-	buf := make([]byte, 1)
-
-	_, err := removeServer.Read(buf)
-	if err == nil {
-		t.Error("expected read from removed connection's server side to fail")
-	}
-}
-
-func verifyKeptConnection(
-	t *testing.T,
-	keepServer, keepClient net.Conn,
-) {
-	t.Helper()
-
-	go func() {
-		_, _ = keepServer.Write([]byte("ping"))
-	}()
-
-	_ = keepClient.SetReadDeadline(time.Now().Add(time.Second))
-
-	readBuf := make([]byte, pingBufferSize)
-
-	bytesRead, err := keepClient.Read(readBuf)
-	if err != nil {
-		t.Errorf("expected kept connection to still be readable: %v", err)
-	}
-
-	if string(readBuf[:bytesRead]) != "ping" {
-		t.Errorf("expected 'ping', got %q", string(readBuf[:bytesRead]))
 	}
 }
 

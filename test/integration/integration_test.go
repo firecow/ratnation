@@ -365,7 +365,8 @@ func waitForTraffic(t *testing.T, url string, timeout time.Duration) {
 }
 
 func trafficMonitor(url string, errors, total *atomic.Int64, stop chan struct{}) {
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
+
 	for {
 		select {
 		case <-stop:
@@ -374,14 +375,18 @@ func trafficMonitor(url string, errors, total *atomic.Int64, stop chan struct{})
 		}
 
 		total.Add(1)
+
 		resp, err := client.Get(url)
 		if err != nil {
 			errors.Add(1)
+			log.Printf("traffic error: %v", err)
 		} else {
-			io.Copy(io.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
+
 			if resp.StatusCode != http.StatusOK {
 				errors.Add(1)
+				log.Printf("traffic non-OK status: %d", resp.StatusCode)
 			}
 		}
 

@@ -14,6 +14,8 @@ import (
 
 const (
 	proxyTargetWaitTimeout = 30 * time.Second
+	dialMaxRetries         = 3
+	dialRetryDelay         = 100 * time.Millisecond
 )
 
 // ProxyTarget holds the address of a single upstream target.
@@ -67,7 +69,6 @@ func (proxy *TCPProxy) ReadTargets() []ProxyTarget {
 
 func (proxy *TCPProxy) updateTargets(targets []ProxyTarget) {
 	proxy.mu.Lock()
-	oldTargets := proxy.targets
 
 	proxy.targets = targets
 
@@ -86,28 +87,6 @@ func (proxy *TCPProxy) updateTargets(targets []ProxyTarget) {
 	}
 
 	proxy.mu.Unlock()
-
-	newAddrs := make(map[string]bool)
-
-	for _, target := range targets {
-		newAddrs[proxyTargetAddr(target)] = true
-	}
-
-	proxy.upstreamMu.Lock()
-
-	for _, target := range oldTargets {
-		addr := proxyTargetAddr(target)
-
-		if !newAddrs[addr] {
-			for _, conn := range proxy.upstreams[addr] {
-				_ = conn.Close()
-			}
-
-			delete(proxy.upstreams, addr)
-		}
-	}
-
-	proxy.upstreamMu.Unlock()
 }
 
 func (proxy *TCPProxy) trackUpstream(addr string, conn net.Conn) {
@@ -135,7 +114,7 @@ func (proxy *TCPProxy) untrackUpstream(addr string, conn net.Conn) {
 }
 
 func (proxy *TCPProxy) start(ctx context.Context) error {
-	listenConfig := net.ListenConfig{ //nolint:exhaustruct
+	listenConfig := net.ListenConfig{
 		KeepAlive: 0,
 	}
 
@@ -176,24 +155,8 @@ func (proxy *TCPProxy) handleConn(
 ) {
 	defer func() { _ = clientConn.Close() }()
 
-	target, found := proxy.waitForTarget()
-	if !found {
-		return
-	}
-
-	addr := proxyTargetAddr(target)
-
-	dialer := net.Dialer{ //nolint:exhaustruct
-		Timeout: 0,
-	}
-
-	upstream, err := dialer.DialContext(ctx, "tcp", addr)
-	if err != nil {
-		slog.Error(
-			"Failed to dial upstream",
-			"name", proxy.name, "addr", addr, "error", err,
-		)
-
+	upstream, addr, ok := proxy.dialUpstream(ctx)
+	if !ok {
 		return
 	}
 
@@ -214,6 +177,42 @@ func (proxy *TCPProxy) handleConn(
 	_, _ = io.Copy(clientConn, upstream)
 
 	<-done
+}
+
+func (proxy *TCPProxy) dialUpstream(
+	ctx context.Context,
+) (net.Conn, string, bool) {
+	dialer := net.Dialer{
+		Timeout: 0,
+	}
+
+	for attempt := range dialMaxRetries {
+		target, found := proxy.waitForTarget()
+		if !found {
+			return nil, "", false
+		}
+
+		addr := proxyTargetAddr(target)
+
+		upstream, err := dialer.DialContext(ctx, "tcp", addr)
+		if err == nil {
+			return upstream, addr, true
+		}
+
+		slog.Error(
+			"Failed to dial upstream",
+			"name", proxy.name, "addr", addr,
+			"error", err, "attempt", attempt+1,
+		)
+
+		select {
+		case <-ctx.Done():
+			return nil, "", false
+		case <-time.After(dialRetryDelay):
+		}
+	}
+
+	return nil, "", false
 }
 
 func (proxy *TCPProxy) waitForTarget() (ProxyTarget, bool) {
@@ -255,5 +254,17 @@ func (proxy *TCPProxy) close() {
 		}
 
 		proxy.mu.Unlock()
+
+		proxy.upstreamMu.Lock()
+
+		for addr, conns := range proxy.upstreams {
+			for _, conn := range conns {
+				_ = conn.Close()
+			}
+
+			delete(proxy.upstreams, addr)
+		}
+
+		proxy.upstreamMu.Unlock()
 	})
 }

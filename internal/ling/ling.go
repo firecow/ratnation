@@ -367,7 +367,9 @@ func performShutdown(
 	watcherCancel()
 	syncerCancel()
 
-	finalCtx, finalCancel := context.WithTimeout(ctx, finalSyncTimeout)
+	finalCtx, finalCancel := context.WithTimeout(
+		context.WithoutCancel(ctx), finalSyncTimeout,
+	)
 	defer finalCancel()
 
 	syncerInstance.sync(finalCtx)
@@ -469,18 +471,6 @@ func buildKingIndex(stateSnapshot *state.State) map[string]KingIndex {
 	return index
 }
 
-func buildHealthyLingSet(stateSnapshot *state.State) map[string]bool {
-	set := make(map[string]bool, len(stateSnapshot.Lings))
-
-	for _, lingEntry := range stateSnapshot.Lings {
-		if !lingEntry.ShuttingDown {
-			set[lingEntry.LingID] = true
-		}
-	}
-
-	return set
-}
-
 func buildTunnelGroups(
 	stateSnapshot *state.State,
 	lingID string,
@@ -566,11 +556,9 @@ func updateProxyTargets(
 	tcpProxies map[string]*TCPProxy,
 	kings map[string]KingIndex,
 ) {
-	healthyLings := buildHealthyLingSet(stateSnapshot)
-
 	for proxyName, proxy := range tcpProxies {
 		targets := collectProxyTargets(
-			stateSnapshot, proxyName, healthyLings, kings,
+			stateSnapshot, proxyName, kings,
 		)
 		proxy.updateTargets(targets)
 	}
@@ -579,7 +567,6 @@ func updateProxyTargets(
 func isServiceEligibleForProxy(
 	svc state.Service,
 	proxyName string,
-	healthyLings map[string]bool,
 	kings map[string]KingIndex,
 ) bool {
 	if svc.Name != proxyName || svc.Host == nil || svc.RemotePort == nil {
@@ -587,10 +574,6 @@ func isServiceEligibleForProxy(
 	}
 
 	if !svc.LingReady || !svc.KingReady {
-		return false
-	}
-
-	if !healthyLings[svc.LingID] {
 		return false
 	}
 
@@ -608,13 +591,12 @@ func isServiceEligibleForProxy(
 func collectProxyTargets(
 	stateSnapshot *state.State,
 	proxyName string,
-	healthyLings map[string]bool,
 	kings map[string]KingIndex,
 ) []ProxyTarget {
 	targets := make([]ProxyTarget, 0, len(stateSnapshot.Services))
 
 	for _, svc := range stateSnapshot.Services {
-		if !isServiceEligibleForProxy(svc, proxyName, healthyLings, kings) {
+		if !isServiceEligibleForProxy(svc, proxyName, kings) {
 			continue
 		}
 

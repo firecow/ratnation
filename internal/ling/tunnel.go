@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	quicKeepAlivePeriod   = 5 * time.Second
+	quicKeepAlivePeriod   = 2 * time.Second
+	quicMaxIdleTimeout    = 4 * time.Second
 	quicMaxIncomingStream = 1024
 	quicErrorRegFailed    = 1
 	quicErrorRejected     = 2
@@ -151,6 +152,7 @@ func (tc *TunnelClient) dialKing(
 		ctx, kingAddr, tlsConfig,
 		&quic.Config{
 			KeepAlivePeriod:    quicKeepAlivePeriod,
+			MaxIdleTimeout:     quicMaxIdleTimeout,
 			MaxIncomingStreams: quicMaxIncomingStream,
 		},
 	)
@@ -226,8 +228,10 @@ func (tc *TunnelClient) acceptDataStreams(
 	kingAddr string,
 	localAddrs map[string]string,
 ) {
+	serveCtx := context.WithoutCancel(ctx)
+
 	for {
-		dataStream, err := conn.AcceptStream(ctx)
+		dataStream, err := conn.AcceptStream(serveCtx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -242,22 +246,16 @@ func (tc *TunnelClient) acceptDataStreams(
 			return
 		}
 
-		go handleDataStream(ctx, dataStream, localAddrs)
+		go handleDataStream(serveCtx, dataStream, localAddrs)
 	}
 }
 
-func handleDataStream(
-	ctx context.Context,
-	stream *quic.Stream,
-	localAddrs map[string]string,
-) {
+func readServiceID(stream *quic.Stream) (string, error) {
 	headerBuf := make([]byte, serviceIDHeaderBytes)
 
 	_, err := io.ReadFull(stream, headerBuf)
 	if err != nil {
-		_ = stream.Close()
-
-		return
+		return "", fmt.Errorf("reading header: %w", err)
 	}
 
 	serviceIDLen := binary.BigEndian.Uint16(headerBuf)
@@ -265,19 +263,32 @@ func handleDataStream(
 
 	_, err = io.ReadFull(stream, serviceIDBuf)
 	if err != nil {
+		return "", fmt.Errorf("reading service ID: %w", err)
+	}
+
+	return string(serviceIDBuf), nil
+}
+
+func handleDataStream(
+	ctx context.Context,
+	stream *quic.Stream,
+	localAddrs map[string]string,
+) {
+	serviceID, err := readServiceID(stream)
+	if err != nil {
 		_ = stream.Close()
 
 		return
 	}
 
-	localAddr, addrFound := localAddrs[string(serviceIDBuf)]
+	localAddr, addrFound := localAddrs[serviceID]
 	if !addrFound {
 		_ = stream.Close()
 
 		return
 	}
 
-	dialer := net.Dialer{ //nolint:exhaustruct
+	dialer := net.Dialer{
 		Timeout: 0,
 	}
 

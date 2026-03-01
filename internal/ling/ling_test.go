@@ -455,17 +455,17 @@ func TestOnStateChanged_UpdatesProxyTargets(t *testing.T) {
 	}
 }
 
-func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
+func TestOnStateChanged_IncludesShuttingDownLing(t *testing.T) {
 	t.Parallel()
 
 	stateSnapshot := buildStateChangedState(stateChangedTestCase{
-		name:             "excludes shutting down ling",
+		name:             "includes shutting down ling with ready state",
 		kingShuttingDown: false,
 		lingShuttingDown: true,
 		lingReady:        true,
 		kingReady:        true,
 		hostNil:          false,
-		expectedTargets:  0,
+		expectedTargets:  1,
 	})
 
 	proxy := ling.NewTCPProxy("myproxy", 0)
@@ -479,8 +479,8 @@ func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
 
 	targets := proxy.ReadTargets()
 
-	if len(targets) != 0 {
-		t.Errorf("expected 0 targets (ling shutting down), got %d", len(targets))
+	if len(targets) != 1 {
+		t.Errorf("expected 1 target (ling shutting down but still ready), got %d", len(targets))
 	}
 }
 

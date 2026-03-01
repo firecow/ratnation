@@ -19,10 +19,13 @@ import (
 )
 
 const (
-	quicKeepAlivePeriod    = 5 * time.Second
+	quicKeepAlivePeriod    = 2 * time.Second
+	quicMaxIdleTimeout     = 4 * time.Second
 	quicMaxIncomingStreams = 1024
 	quicAuthFailCode       = 2
-	quicStreamOpenTimeout  = 5 * time.Second
+	quicStreamOpenTimeout  = 2 * time.Second
+	quicStreamOpenRetries  = 3
+	quicStreamRetryDelay   = 500 * time.Millisecond
 	serviceIDHeaderBytes   = 2
 )
 
@@ -90,6 +93,7 @@ func (tunnelSrv *TunnelServer) run(
 		tunnelSrv.tlsConfig,
 		&quic.Config{
 			KeepAlivePeriod:    quicKeepAlivePeriod,
+			MaxIdleTimeout:     quicMaxIdleTimeout,
 			MaxIncomingStreams: quicMaxIncomingStreams,
 		},
 	)
@@ -143,7 +147,7 @@ func (tunnelSrv *TunnelServer) handleConnection(
 
 	<-conn.Context().Done()
 
-	tunnelSrv.unregisterConnections(validServiceIDs)
+	tunnelSrv.unregisterConnections(validServiceIDs, conn)
 
 	slog.Info(
 		"Ling disconnected",
@@ -276,11 +280,14 @@ func (tunnelSrv *TunnelServer) registerConnections(
 
 func (tunnelSrv *TunnelServer) unregisterConnections(
 	serviceIDs []string,
+	conn *quic.Conn,
 ) {
 	tunnelSrv.mu.Lock()
 
 	for _, serviceID := range serviceIDs {
-		delete(tunnelSrv.quicConns, serviceID)
+		if tunnelSrv.quicConns[serviceID] == conn {
+			delete(tunnelSrv.quicConns, serviceID)
+		}
 	}
 
 	tunnelSrv.mu.Unlock()
@@ -377,25 +384,12 @@ func (tunnelSrv *TunnelServer) handleTCPConnection(
 ) {
 	defer func() { _ = tcpConn.Close() }()
 
-	tunnelSrv.mu.RLock()
-	quicConn, exists := tunnelSrv.quicConns[serviceID]
-	tunnelSrv.mu.RUnlock()
-
-	if !exists {
+	stream, ok := tunnelSrv.openServiceStream(ctx, serviceID)
+	if !ok {
 		return
 	}
 
-	streamCtx, cancel := context.WithTimeout(
-		ctx, quicStreamOpenTimeout,
-	)
-	defer cancel()
-
-	stream, err := quicConn.OpenStreamSync(streamCtx)
-	if err != nil {
-		return
-	}
-
-	err = writeServiceIDHeader(stream, serviceID)
+	err := writeServiceIDHeader(stream, serviceID)
 	if err != nil {
 		_ = stream.Close()
 
@@ -403,6 +397,51 @@ func (tunnelSrv *TunnelServer) handleTCPConnection(
 	}
 
 	bridgeStreams(stream, tcpConn)
+}
+
+func (tunnelSrv *TunnelServer) openServiceStream(
+	ctx context.Context,
+	serviceID string,
+) (*quic.Stream, bool) {
+	for range quicStreamOpenRetries {
+		tunnelSrv.mu.RLock()
+		quicConn, exists := tunnelSrv.quicConns[serviceID]
+		tunnelSrv.mu.RUnlock()
+
+		if !exists {
+			select {
+			case <-ctx.Done():
+				return nil, false
+			case <-time.After(quicStreamRetryDelay):
+				continue
+			}
+		}
+
+		select {
+		case <-quicConn.Context().Done():
+			select {
+			case <-ctx.Done():
+				return nil, false
+			case <-time.After(quicStreamRetryDelay):
+				continue
+			}
+		default:
+		}
+
+		streamCtx, cancel := context.WithTimeout(
+			ctx, quicStreamOpenTimeout,
+		)
+
+		stream, err := quicConn.OpenStreamSync(streamCtx)
+
+		cancel()
+
+		if err == nil {
+			return stream, true
+		}
+	}
+
+	return nil, false
 }
 
 func writeServiceIDHeader(

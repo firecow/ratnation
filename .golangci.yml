@@ -35,3 +35,5 @@ linters:
         - net\.KeepAliveConfig
         - github.com/quic-go/quic-go\.Config
         - net/url\.URL
+        - net\.Dialer
+        - net\.ListenConfig
