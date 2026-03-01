@@ -35,7 +35,7 @@ type tunnelServer struct {
 	mu              sync.RWMutex
 	services        map[string]serviceAuth     // service_id -> auth
 	tcpListeners    map[int]net.Listener       // remote_port -> listener
-	quicConns       map[string]quic.Connection // service_id -> QUIC connection
+	quicConns       map[string]*quic.Conn // service_id -> QUIC connection
 	onLingConnected func()
 }
 
@@ -45,7 +45,7 @@ func newTunnelServer(bindPort int, tlsConfig *tls.Config) *tunnelServer {
 		tlsConfig:    tlsConfig,
 		services:     make(map[string]serviceAuth),
 		tcpListeners: make(map[int]net.Listener),
-		quicConns:    make(map[string]quic.Connection),
+		quicConns:    make(map[string]*quic.Conn),
 	}
 }
 
@@ -87,7 +87,7 @@ func (ts *tunnelServer) run(ctx context.Context) error {
 	return nil
 }
 
-func (ts *tunnelServer) handleConnection(conn quic.Connection) {
+func (ts *tunnelServer) handleConnection(conn *quic.Conn) {
 	stream, err := conn.AcceptStream(conn.Context())
 	if err != nil {
 		slog.Error("Failed to accept control stream", "error", err)

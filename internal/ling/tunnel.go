@@ -33,13 +33,13 @@ type tunnelService struct {
 
 type tunnelClient struct {
 	mu          sync.Mutex
-	connections map[string]quic.Connection // king_bind_addr -> connection
+	connections map[string]*quic.Conn // king_bind_addr -> connection
 	onConnected func()
 }
 
 func newTunnelClient() *tunnelClient {
 	return &tunnelClient{
-		connections: make(map[string]quic.Connection),
+		connections: make(map[string]*quic.Conn),
 	}
 }
 
@@ -145,7 +145,7 @@ func (tc *tunnelClient) ensureConnection(ctx context.Context, group *kingGroup, 
 	}()
 }
 
-func handleDataStream(stream quic.Stream, localAddrs map[string]string) {
+func handleDataStream(stream *quic.Stream, localAddrs map[string]string) {
 	headerBuf := make([]byte, 2)
 	if _, err := io.ReadFull(stream, headerBuf); err != nil {
 		stream.Close()
