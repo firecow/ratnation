@@ -1,3 +1,4 @@
+// Package main is the entry point for the burrow service mesh CLI.
 package main
 
 import (
@@ -7,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/firecow/ratnation/internal/council"
-	"github.com/firecow/ratnation/internal/debug"
-	"github.com/firecow/ratnation/internal/king"
-	"github.com/firecow/ratnation/internal/ling"
+	"github.com/firecow/burrow/internal/council"
+	"github.com/firecow/burrow/internal/debugcmd"
+	"github.com/firecow/burrow/internal/king"
+	"github.com/firecow/burrow/internal/ling"
 	"github.com/spf13/cobra"
 )
 
@@ -32,12 +33,14 @@ func run() int {
 	root.AddCommand(council.Command())
 	root.AddCommand(king.Command())
 	root.AddCommand(ling.Command())
-	root.AddCommand(debug.Command())
+	root.AddCommand(debugcmd.Command())
 
 	root.SetContext(ctx)
 
-	if err := root.ExecuteContext(ctx); err != nil {
+	err := root.ExecuteContext(ctx)
+	if err != nil {
 		return 1
 	}
+
 	return 0
 }

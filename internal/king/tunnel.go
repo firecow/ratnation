@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
@@ -16,234 +18,497 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-type controlMessage struct {
-	ServiceID string `json:"service_id"`
+const (
+	quicKeepAlivePeriod    = 2 * time.Second
+	quicMaxIdleTimeout     = 4 * time.Second
+	quicMaxIncomingStreams = 1024
+	quicAuthFailCode       = 2
+	quicStreamOpenTimeout  = 2 * time.Second
+	quicStreamOpenRetries  = 3
+	quicStreamRetryDelay   = 500 * time.Millisecond
+	serviceIDHeaderBytes   = 2
+)
+
+var errServiceIDTooLong = errors.New("service ID too long")
+
+// ControlMessage represents the authentication message from a ling.
+type ControlMessage struct {
+	ServiceID string `json:"serviceId"`
 	Token     string `json:"token"`
 }
 
-type controlResponse struct {
+// ControlResponse is the server's response to authentication.
+type ControlResponse struct {
 	OK bool `json:"ok"`
 }
 
-type serviceAuth struct {
-	token string
+// ServiceAuth holds the authentication token for a service.
+type ServiceAuth struct {
+	Token string
 }
 
-type tunnelServer struct {
+// TunnelServer manages QUIC connections and TCP listeners for a single bind port.
+type TunnelServer struct {
 	bindPort        int
 	tlsConfig       *tls.Config
 	mu              sync.RWMutex
-	services        map[string]serviceAuth     // service_id -> auth
-	tcpListeners    map[int]net.Listener       // remote_port -> listener
-	quicConns       map[string]quic.Connection // service_id -> QUIC connection
+	services        map[string]ServiceAuth
+	tcpListeners    map[int]net.Listener
+	quicConns       map[string]*quic.Conn
 	onLingConnected func()
 }
 
-func newTunnelServer(bindPort int, tlsConfig *tls.Config) *tunnelServer {
-	return &tunnelServer{
-		bindPort:     bindPort,
-		tlsConfig:    tlsConfig,
-		services:     make(map[string]serviceAuth),
-		tcpListeners: make(map[int]net.Listener),
-		quicConns:    make(map[string]quic.Connection),
+// NewTunnelServer creates a new TunnelServer for the given bind port.
+func NewTunnelServer(
+	bindPort int, tlsConfig *tls.Config,
+) *TunnelServer {
+	return &TunnelServer{
+		bindPort:        bindPort,
+		tlsConfig:       tlsConfig,
+		mu:              sync.RWMutex{},
+		services:        make(map[string]ServiceAuth),
+		tcpListeners:    make(map[int]net.Listener),
+		quicConns:       make(map[string]*quic.Conn),
+		onLingConnected: nil,
 	}
 }
 
-func (ts *tunnelServer) updateServices(services map[string]serviceAuth) {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	ts.services = services
+func (tunnelSrv *TunnelServer) updateServices(
+	services map[string]ServiceAuth,
+) {
+	tunnelSrv.mu.Lock()
+	defer tunnelSrv.mu.Unlock()
+
+	tunnelSrv.services = services
 }
 
-func (ts *tunnelServer) run(ctx context.Context) error {
+func (tunnelSrv *TunnelServer) run(
+	ctx context.Context,
+) error {
 	listener, err := quic.ListenAddr(
-		net.JoinHostPort("0.0.0.0", strconv.Itoa(ts.bindPort)),
-		ts.tlsConfig,
+		net.JoinHostPort(
+			"0.0.0.0",
+			strconv.Itoa(tunnelSrv.bindPort),
+		),
+		tunnelSrv.tlsConfig,
 		&quic.Config{
-			KeepAlivePeriod:    5 * time.Second,
-			MaxIncomingStreams: 1024,
+			KeepAlivePeriod:    quicKeepAlivePeriod,
+			MaxIdleTimeout:     quicMaxIdleTimeout,
+			MaxIncomingStreams: quicMaxIncomingStreams,
 		},
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf(
+			"listening on QUIC address: %w", err,
+		)
 	}
 
-	slog.Info("QUIC listener started", "bind_port", ts.bindPort)
+	slog.Info(
+		"QUIC listener started",
+		"bind_port", tunnelSrv.bindPort,
+	)
 
 	go func() {
 		<-ctx.Done()
-		listener.Close()
+
+		_ = listener.Close()
 	}()
 
 	for ctx.Err() == nil {
-		conn, err := listener.Accept(ctx)
-		if err != nil {
-			slog.Error("QUIC accept failed", "error", err)
+		conn, acceptErr := listener.Accept(ctx)
+		if acceptErr != nil {
+			slog.Error(
+				"QUIC accept failed", "error", acceptErr,
+			)
+
 			continue
 		}
 
-		go ts.handleConnection(conn)
+		go tunnelSrv.handleConnection(ctx, conn)
 	}
+
 	return nil
 }
 
-func (ts *tunnelServer) handleConnection(conn quic.Connection) {
-	stream, err := conn.AcceptStream(conn.Context())
-	if err != nil {
-		slog.Error("Failed to accept control stream", "error", err)
+func (tunnelSrv *TunnelServer) handleConnection(
+	ctx context.Context,
+	conn *quic.Conn,
+) {
+	validServiceIDs, handleOK := tunnelSrv.negotiateConnection(ctx, conn)
+	if !handleOK {
 		return
 	}
 
-	decoder := json.NewDecoder(stream)
-	var messages []controlMessage
-	if err := decoder.Decode(&messages); err != nil {
-		slog.Error("Failed to decode control messages", "error", err)
-		stream.Close()
-		_ = conn.CloseWithError(1, "invalid control message")
-		return
-	}
+	tunnelSrv.registerConnections(validServiceIDs, conn)
 
-	ts.mu.RLock()
-	validServiceIDs := make([]string, 0, len(messages))
-	for _, msg := range messages {
-		auth, exists := ts.services[msg.ServiceID]
-		if !exists || auth.token != msg.Token {
-			ts.mu.RUnlock()
-			slog.Error("Invalid token for service", "service_id", msg.ServiceID)
-			stream.Close()
-			_ = conn.CloseWithError(2, "authentication failed")
-			return
-		}
-		validServiceIDs = append(validServiceIDs, msg.ServiceID)
-	}
-	ts.mu.RUnlock()
-
-	response := controlResponse{OK: true}
-	if err := json.NewEncoder(stream).Encode(response); err != nil {
-		slog.Error("Failed to send control response", "error", err)
-		return
-	}
-
-	slog.Info("Ling authenticated", "service_ids", validServiceIDs)
-
-	ts.mu.Lock()
-	for _, serviceID := range validServiceIDs {
-		ts.quicConns[serviceID] = conn
-	}
-	ts.mu.Unlock()
-
-	if ts.onLingConnected != nil {
-		ts.onLingConnected()
+	if tunnelSrv.onLingConnected != nil {
+		tunnelSrv.onLingConnected()
 	}
 
 	<-conn.Context().Done()
 
-	ts.mu.Lock()
-	for _, serviceID := range validServiceIDs {
-		delete(ts.quicConns, serviceID)
-	}
-	ts.mu.Unlock()
+	tunnelSrv.unregisterConnections(validServiceIDs, conn)
 
-	slog.Info("Ling disconnected", "service_ids", validServiceIDs)
+	slog.Info(
+		"Ling disconnected",
+		"service_ids", validServiceIDs,
+	)
 }
 
-func (ts *tunnelServer) ensureTCPListener(remotePort int, serviceID string) {
-	ts.mu.Lock()
-	if _, exists := ts.tcpListeners[remotePort]; exists {
-		ts.mu.Unlock()
-		return
-	}
-
-	listener, err := net.Listen("tcp", net.JoinHostPort("0.0.0.0", strconv.Itoa(remotePort)))
+func (tunnelSrv *TunnelServer) negotiateConnection(
+	ctx context.Context,
+	conn *quic.Conn,
+) ([]string, bool) {
+	stream, err := conn.AcceptStream(ctx)
 	if err != nil {
-		ts.mu.Unlock()
-		slog.Error("Failed to listen on remote port", "remote_port", remotePort, "error", err)
-		return
+		slog.Error(
+			"Failed to accept control stream",
+			"error", err,
+		)
+
+		return nil, false
 	}
-	ts.tcpListeners[remotePort] = listener
-	ts.mu.Unlock()
 
-	slog.Info("TCP listener started", "remote_port", remotePort, "service_id", serviceID)
+	messages, decodeOK := decodeControlMessages(
+		stream, conn,
+	)
+	if !decodeOK {
+		return nil, false
+	}
 
-	go func() {
-		for {
-			tcpConn, err := listener.Accept()
-			if err != nil {
-				return
-			}
+	validServiceIDs, authOK := tunnelSrv.authenticateMessages(
+		messages, stream, conn,
+	)
+	if !authOK {
+		return nil, false
+	}
 
-			go ts.handleTCPConnection(tcpConn, serviceID)
+	response := ControlResponse{OK: true}
+
+	err = json.NewEncoder(stream).Encode(response)
+	if err != nil {
+		slog.Error(
+			"Failed to send control response",
+			"error", err,
+		)
+
+		return nil, false
+	}
+
+	slog.Info(
+		"Ling authenticated",
+		"service_ids", validServiceIDs,
+	)
+
+	return validServiceIDs, true
+}
+
+func decodeControlMessages(
+	stream *quic.Stream,
+	conn *quic.Conn,
+) ([]ControlMessage, bool) {
+	decoder := json.NewDecoder(stream)
+
+	var messages []ControlMessage
+
+	err := decoder.Decode(&messages)
+	if err != nil {
+		slog.Error(
+			"Failed to decode control messages",
+			"error", err,
+		)
+
+		_ = stream.Close()
+		_ = conn.CloseWithError(
+			1, "invalid control message",
+		)
+
+		return nil, false
+	}
+
+	return messages, true
+}
+
+func (tunnelSrv *TunnelServer) authenticateMessages(
+	messages []ControlMessage,
+	stream *quic.Stream,
+	conn *quic.Conn,
+) ([]string, bool) {
+	tunnelSrv.mu.RLock()
+
+	validServiceIDs := make([]string, 0, len(messages))
+
+	for _, msg := range messages {
+		auth, exists := tunnelSrv.services[msg.ServiceID]
+		if !exists || auth.Token != msg.Token {
+			tunnelSrv.mu.RUnlock()
+			slog.Error(
+				"Invalid token for service",
+				"service_id", msg.ServiceID,
+			)
+
+			_ = stream.Close()
+			_ = conn.CloseWithError(
+				quicAuthFailCode, "authentication failed",
+			)
+
+			return nil, false
 		}
-	}()
-}
 
-func (ts *tunnelServer) removeTCPListener(remotePort int) {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	if listener, exists := ts.tcpListeners[remotePort]; exists {
-		listener.Close()
-		delete(ts.tcpListeners, remotePort)
-		slog.Info("TCP listener removed", "remote_port", remotePort)
+		validServiceIDs = append(
+			validServiceIDs, msg.ServiceID,
+		)
 	}
+
+	tunnelSrv.mu.RUnlock()
+
+	return validServiceIDs, true
 }
 
-func (ts *tunnelServer) handleTCPConnection(tcpConn net.Conn, serviceID string) {
-	defer tcpConn.Close()
+func (tunnelSrv *TunnelServer) registerConnections(
+	serviceIDs []string,
+	conn *quic.Conn,
+) {
+	tunnelSrv.mu.Lock()
 
-	ts.mu.RLock()
-	quicConn, exists := ts.quicConns[serviceID]
-	ts.mu.RUnlock()
+	for _, serviceID := range serviceIDs {
+		tunnelSrv.quicConns[serviceID] = conn
+	}
 
-	if !exists {
+	tunnelSrv.mu.Unlock()
+}
+
+func (tunnelSrv *TunnelServer) unregisterConnections(
+	serviceIDs []string,
+	conn *quic.Conn,
+) {
+	tunnelSrv.mu.Lock()
+
+	for _, serviceID := range serviceIDs {
+		if tunnelSrv.quicConns[serviceID] == conn {
+			delete(tunnelSrv.quicConns, serviceID)
+		}
+	}
+
+	tunnelSrv.mu.Unlock()
+}
+
+func (tunnelSrv *TunnelServer) ensureTCPListener(
+	ctx context.Context,
+	remotePort int,
+	serviceID string,
+) {
+	tunnelSrv.mu.Lock()
+
+	if _, exists := tunnelSrv.tcpListeners[remotePort]; exists {
+		tunnelSrv.mu.Unlock()
+
 		return
 	}
 
-	// Use the QUIC connection's context so we detect dead connections
-	streamCtx, cancel := context.WithTimeout(quicConn.Context(), 5*time.Second)
-	defer cancel()
+	listenConfig := net.ListenConfig{
+		Control:         nil,
+		KeepAlive:       0,
+		KeepAliveConfig: net.KeepAliveConfig{},
+	}
 
-	stream, err := quicConn.OpenStreamSync(streamCtx)
+	listener, err := listenConfig.Listen(
+		ctx, "tcp",
+		net.JoinHostPort(
+			"0.0.0.0", strconv.Itoa(remotePort),
+		),
+	)
 	if err != nil {
+		tunnelSrv.mu.Unlock()
+		slog.Error(
+			"Failed to listen on remote port",
+			"remote_port", remotePort, "error", err,
+		)
+
 		return
 	}
 
+	tunnelSrv.tcpListeners[remotePort] = listener
+	tunnelSrv.mu.Unlock()
+
+	slog.Info(
+		"TCP listener started",
+		"remote_port", remotePort,
+		"service_id", serviceID,
+	)
+
+	go tunnelSrv.acceptTCPConnections(
+		ctx, listener, serviceID,
+	)
+}
+
+func (tunnelSrv *TunnelServer) acceptTCPConnections(
+	ctx context.Context,
+	listener net.Listener,
+	serviceID string,
+) {
+	for {
+		tcpConn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			return
+		}
+
+		go tunnelSrv.handleTCPConnection(
+			ctx, tcpConn, serviceID,
+		)
+	}
+}
+
+func (tunnelSrv *TunnelServer) removeTCPListener(
+	remotePort int,
+) {
+	tunnelSrv.mu.Lock()
+	defer tunnelSrv.mu.Unlock()
+
+	listener, exists := tunnelSrv.tcpListeners[remotePort]
+	if exists {
+		_ = listener.Close()
+
+		delete(tunnelSrv.tcpListeners, remotePort)
+		slog.Info(
+			"TCP listener removed",
+			"remote_port", remotePort,
+		)
+	}
+}
+
+func (tunnelSrv *TunnelServer) handleTCPConnection(
+	ctx context.Context,
+	tcpConn net.Conn,
+	serviceID string,
+) {
+	defer func() { _ = tcpConn.Close() }()
+
+	stream, ok := tunnelSrv.openServiceStream(ctx, serviceID)
+	if !ok {
+		return
+	}
+
+	err := writeServiceIDHeader(stream, serviceID)
+	if err != nil {
+		_ = stream.Close()
+
+		return
+	}
+
+	bridgeStreams(stream, tcpConn)
+}
+
+func (tunnelSrv *TunnelServer) openServiceStream(
+	ctx context.Context,
+	serviceID string,
+) (*quic.Stream, bool) {
+	for range quicStreamOpenRetries {
+		tunnelSrv.mu.RLock()
+		quicConn, exists := tunnelSrv.quicConns[serviceID]
+		tunnelSrv.mu.RUnlock()
+
+		if !exists {
+			select {
+			case <-ctx.Done():
+				return nil, false
+			case <-time.After(quicStreamRetryDelay):
+				continue
+			}
+		}
+
+		select {
+		case <-quicConn.Context().Done():
+			select {
+			case <-ctx.Done():
+				return nil, false
+			case <-time.After(quicStreamRetryDelay):
+				continue
+			}
+		default:
+		}
+
+		streamCtx, cancel := context.WithTimeout(
+			ctx, quicStreamOpenTimeout,
+		)
+
+		stream, err := quicConn.OpenStreamSync(streamCtx)
+
+		cancel()
+
+		if err == nil {
+			return stream, true
+		}
+	}
+
+	return nil, false
+}
+
+func writeServiceIDHeader(
+	stream *quic.Stream, serviceID string,
+) error {
 	serviceIDBytes := []byte(serviceID)
+
 	serviceIDLen := len(serviceIDBytes)
 	if serviceIDLen > math.MaxUint16 {
-		stream.Close()
-		return
-	}
-	header := make([]byte, 2)
-	binary.BigEndian.PutUint16(header, uint16(serviceIDLen))
-	if _, err := stream.Write(header); err != nil {
-		stream.Close()
-		return
-	}
-	if _, err := stream.Write(serviceIDBytes); err != nil {
-		stream.Close()
-		return
+		return fmt.Errorf(
+			"%w: %d bytes", errServiceIDTooLong,
+			serviceIDLen,
+		)
 	}
 
+	header := make([]byte, serviceIDHeaderBytes)
+	binary.BigEndian.PutUint16(
+		header, uint16(serviceIDLen),
+	)
+
+	_, err := stream.Write(header)
+	if err != nil {
+		return fmt.Errorf("writing header: %w", err)
+	}
+
+	_, err = stream.Write(serviceIDBytes)
+	if err != nil {
+		return fmt.Errorf(
+			"writing service ID: %w", err,
+		)
+	}
+
+	return nil
+}
+
+func bridgeStreams(
+	stream *quic.Stream, tcpConn net.Conn,
+) {
 	done := make(chan struct{})
+
 	go func() {
 		_, _ = io.Copy(stream, tcpConn)
-		stream.Close()
+		_ = stream.Close()
+
 		close(done)
 	}()
+
 	_, _ = io.Copy(tcpConn, stream)
 	stream.CancelRead(0)
 	<-done
 }
 
-func (ts *tunnelServer) close() {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	for port, listener := range ts.tcpListeners {
-		listener.Close()
-		delete(ts.tcpListeners, port)
+func (tunnelSrv *TunnelServer) close() {
+	tunnelSrv.mu.Lock()
+	defer tunnelSrv.mu.Unlock()
+
+	for port, listener := range tunnelSrv.tcpListeners {
+		_ = listener.Close()
+
+		delete(tunnelSrv.tcpListeners, port)
 	}
-	for serviceID, conn := range ts.quicConns {
-		_ = conn.CloseWithError(0, "server shutting down")
-		delete(ts.quicConns, serviceID)
+
+	for serviceID, conn := range tunnelSrv.quicConns {
+		_ = conn.CloseWithError(
+			0, "server shutting down",
+		)
+
+		delete(tunnelSrv.quicConns, serviceID)
 	}
 }

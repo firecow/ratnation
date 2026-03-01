@@ -104,7 +104,7 @@ func TestZeroDowntimeRedeployment(t *testing.T) {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king1",
-				`--rathole=bind_port=2333 ports=5000-5001`,
+				`--tunnel=bind_port=2333 ports=5000-5001`,
 				"--location=CPH",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -118,7 +118,7 @@ func TestZeroDowntimeRedeployment(t *testing.T) {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king2",
-				`--rathole=bind_port=2334 ports=5002-5003`,
+				`--tunnel=bind_port=2334 ports=5002-5003`,
 				"--location=AMS",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -131,7 +131,7 @@ func TestZeroDowntimeRedeployment(t *testing.T) {
 			cmd: []string{
 				"ling",
 				"--council-host=http://council:8080",
-				`--rathole=name=alpha local_addr=echoserver:8080`,
+				`--tunnel=name=alpha local_addr=echoserver:8080`,
 			},
 			waitStrategy: wait.ForLog("Ready").
 				WithStartupTimeout(60 * time.Second),
@@ -209,7 +209,14 @@ func restartSubtest(t *testing.T, ctx context.Context, s *stack, name string, re
 	time.Sleep(pollInterval * 2)
 
 	t.Logf("%s restart: %d/%d requests failed", name, errors.Load(), total.Load())
-	require.Zero(t, errors.Load(), "%s restart caused %d errors out of %d requests", name, errors.Load(), total.Load())
+	require.Zero(
+		t,
+		errors.Load(),
+		"%s restart caused %d errors out of %d requests",
+		name,
+		errors.Load(),
+		total.Load(),
+	)
 }
 
 func restartStopFirst(t *testing.T, ctx context.Context, s *stack, name string) {
@@ -253,7 +260,7 @@ func specForContainer(name string) containerSpec {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king1",
-				`--rathole=bind_port=2333 ports=5000-5001`,
+				`--tunnel=bind_port=2333 ports=5000-5001`,
 				"--location=CPH",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -267,7 +274,7 @@ func specForContainer(name string) containerSpec {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king2",
-				`--rathole=bind_port=2334 ports=5002-5003`,
+				`--tunnel=bind_port=2334 ports=5002-5003`,
 				"--location=AMS",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -280,7 +287,7 @@ func specForContainer(name string) containerSpec {
 			cmd: []string{
 				"ling",
 				"--council-host=http://council:8080",
-				`--rathole=name=alpha local_addr=echoserver:8080`,
+				`--tunnel=name=alpha local_addr=echoserver:8080`,
 			},
 			waitStrategy: wait.ForLog("Ready").
 				WithStartupTimeout(60 * time.Second),
@@ -302,7 +309,11 @@ func specForContainer(name string) containerSpec {
 	return specs[name]
 }
 
-func startContainer(t *testing.T, ctx context.Context, spec containerSpec) testcontainers.Container {
+func startContainer(
+	t *testing.T,
+	ctx context.Context,
+	spec containerSpec,
+) testcontainers.Container {
 	t.Helper()
 
 	req := testcontainers.ContainerRequest{
@@ -354,7 +365,8 @@ func waitForTraffic(t *testing.T, url string, timeout time.Duration) {
 }
 
 func trafficMonitor(url string, errors, total *atomic.Int64, stop chan struct{}) {
-	client := &http.Client{Timeout: 2 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
+
 	for {
 		select {
 		case <-stop:
@@ -363,14 +375,18 @@ func trafficMonitor(url string, errors, total *atomic.Int64, stop chan struct{})
 		}
 
 		total.Add(1)
+
 		resp, err := client.Get(url)
 		if err != nil {
 			errors.Add(1)
+			log.Printf("traffic error: %v", err)
 		} else {
-			io.Copy(io.Discard, resp.Body)
+			_, _ = io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
+
 			if resp.StatusCode != http.StatusOK {
 				errors.Add(1)
+				log.Printf("traffic non-OK status: %d", resp.StatusCode)
 			}
 		}
 

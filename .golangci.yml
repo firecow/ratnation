@@ -1,43 +1,39 @@
-linters:
-  enable:
-    - bodyclose
-    - copyloopvar
-    - errcheck
-    - errorlint
-    - gocognit
-    - gocritic
-    - gofmt
-    - gosec
-    - govet
-    - ineffassign
-    - misspell
-    - nilerr
-    - prealloc
-    - revive
-    - staticcheck
-    - unconvert
-    - unparam
-    - unused
-    - wastedassign
+version: "2"
 
-linters-settings:
-  gocognit:
-    min-complexity: 30
-  revive:
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: exported
-        disabled: true
-      - name: increment-decrement
-      - name: indent-error-flow
-      - name: range
-      - name: receiver-naming
-      - name: redefines-builtin-id
-      - name: time-naming
-      - name: unexported-return
-      - name: var-declaration
-      - name: var-naming
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+    - golines
+
+linters:
+  default: all
+  settings:
+    depguard:
+      rules:
+        Main:
+          allow:
+            - $gostd
+            - github.com/coder/websocket
+            - github.com/firecow/burrow
+            - github.com/google/uuid
+            - github.com/quic-go/quic-go
+            - github.com/spf13/cobra
+            - github.com/stretchr/testify
+            - github.com/testcontainers/testcontainers-go
+    exhaustruct:
+      exclude:
+        - github.com/spf13/cobra\.Command
+        - github.com/spf13/cobra\.CompletionOptions
+        - crypto/tls\.Config
+        - crypto/tls\.Certificate
+        - crypto/x509\.Certificate
+        - encoding/pem\.Block
+        - net/http\.Request
+        - net\.KeepAliveConfig
+        - github.com/quic-go/quic-go\.Config
+        - net/url\.URL
+        - net\.Dialer
+        - net\.ListenConfig

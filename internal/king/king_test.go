@@ -1,591 +1,947 @@
-package king
+package king_test
 
 import (
+	"sync"
 	"testing"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/king"
+	"github.com/firecow/burrow/internal/state"
 )
 
-// --- parseRatholeArgs ---
+const (
+	testHost          = "1.2.3.4"
+	testDifferentHost = "9.9.9.9"
+	testBindPort      = 2333
+	testBindPort2     = 2334
+	testNonMatchPort  = 9999
+	testPortRange1    = "5000-5100"
+	testPortRange2    = "6000-6050"
+	testPortRange3    = "39701-39710"
+	testPortRange4    = "39711-39720"
+	testPortRange5    = "39721-39730"
+	testPortRange6    = "39731-39740"
+	testPortRange7    = "39741-39750"
+	testPortRange8    = "39751-39760"
+	testPortRange9    = "39761-39770"
+	testRemotePort1   = 39701
+	testRemotePort2   = 39711
+	testRemotePort3   = 39721
+	testRemotePort4   = 39741
+	testRemotePort5   = 39751
+	testRemotePort6   = 39761
+)
 
-func TestParseRatholeArgs_ValidSingle(t *testing.T) {
-	configs, err := parseRatholeArgs([]string{"bind_port=2333 ports=5000-5100"})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(configs) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configs))
-	}
-	if configs[0].BindPort != 2333 {
-		t.Fatalf("expected bind_port 2333, got %d", configs[0].BindPort)
-	}
-	if configs[0].Ports != "5000-5100" {
-		t.Fatalf("expected ports 5000-5100, got %s", configs[0].Ports)
+func newTestService(
+	serviceID, lingID string,
+	host *string,
+	bindPort *int,
+) state.Service {
+	return state.Service{
+		Name:              "",
+		Token:             "",
+		ServiceID:         serviceID,
+		LingID:            lingID,
+		PreferredLocation: "",
+		LingReady:         false,
+		KingReady:         false,
+		Host:              host,
+		BindPort:          bindPort,
+		RemotePort:        nil,
 	}
 }
 
-func TestParseRatholeArgs_ValidMultiple(t *testing.T) {
-	configs, err := parseRatholeArgs([]string{
+func newTestServiceWithToken(
+	serviceID, lingID, token string,
+	host *string,
+	bindPort, remotePort *int,
+) state.Service {
+	return state.Service{
+		Name:              "",
+		Token:             token,
+		ServiceID:         serviceID,
+		LingID:            lingID,
+		PreferredLocation: "",
+		LingReady:         false,
+		KingReady:         false,
+		Host:              host,
+		BindPort:          bindPort,
+		RemotePort:        remotePort,
+	}
+}
+
+func newTestLing(
+	lingID string, shuttingDown bool,
+) state.Ling {
+	return state.Ling{
+		LingID:       lingID,
+		ShuttingDown: shuttingDown,
+		Beat:         0,
+	}
+}
+
+func newTestState(
+	services []state.Service,
+	lings []state.Ling,
+) *state.State {
+	return &state.State{
+		Revision: 0,
+		Services: services,
+		Kings:    nil,
+		Lings:    lings,
+	}
+}
+
+// --- ParseTunnelArgs ---
+
+func TestParseTunnelArgs_ValidSingle(t *testing.T) {
+	t.Parallel()
+
+	configs, err := king.ParseTunnelArgs(
+		[]string{"bind_port=2333 ports=5000-5100"},
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(configs) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configs))
+	}
+
+	if configs[0].BindPort != testBindPort {
+		t.Fatalf(
+			"expected bind_port 2333, got %d",
+			configs[0].BindPort,
+		)
+	}
+
+	if configs[0].Ports != testPortRange1 {
+		t.Fatalf(
+			"expected ports 5000-5100, got %s",
+			configs[0].Ports,
+		)
+	}
+}
+
+func TestParseTunnelArgs_ValidMultiple(t *testing.T) {
+	t.Parallel()
+
+	configs, err := king.ParseTunnelArgs([]string{
 		"bind_port=2333 ports=5000-5100",
 		"bind_port=2334 ports=6000-6050",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if len(configs) != 2 {
 		t.Fatalf("expected 2 configs, got %d", len(configs))
 	}
-	if configs[0].BindPort != 2333 {
-		t.Fatalf("expected first bind_port 2333, got %d", configs[0].BindPort)
+
+	if configs[0].BindPort != testBindPort {
+		t.Fatalf(
+			"expected first bind_port 2333, got %d",
+			configs[0].BindPort,
+		)
 	}
-	if configs[1].BindPort != 2334 {
-		t.Fatalf("expected second bind_port 2334, got %d", configs[1].BindPort)
+
+	if configs[1].BindPort != testBindPort2 {
+		t.Fatalf(
+			"expected second bind_port 2334, got %d",
+			configs[1].BindPort,
+		)
 	}
-	if configs[1].Ports != "6000-6050" {
-		t.Fatalf("expected second ports 6000-6050, got %s", configs[1].Ports)
+
+	if configs[1].Ports != testPortRange2 {
+		t.Fatalf(
+			"expected second ports 6000-6050, got %s",
+			configs[1].Ports,
+		)
 	}
 }
 
-func TestParseRatholeArgs_Empty(t *testing.T) {
-	configs, err := parseRatholeArgs(nil)
+func TestParseTunnelArgs_Empty(t *testing.T) {
+	t.Parallel()
+
+	configs, err := king.ParseTunnelArgs(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+
 	if len(configs) != 0 {
 		t.Fatalf("expected 0 configs, got %d", len(configs))
 	}
 }
 
-func TestParseRatholeArgs_MissingBindPort(t *testing.T) {
-	_, err := parseRatholeArgs([]string{"ports=5000-5100"})
+func TestParseTunnelArgs_MissingBindPort(t *testing.T) {
+	t.Parallel()
+
+	_, err := king.ParseTunnelArgs(
+		[]string{"ports=5000-5100"},
+	)
 	if err == nil {
 		t.Fatal("expected error for missing bind_port")
 	}
 }
 
-func TestParseRatholeArgs_MissingPorts(t *testing.T) {
-	_, err := parseRatholeArgs([]string{"bind_port=2333"})
+func TestParseTunnelArgs_MissingPorts(t *testing.T) {
+	t.Parallel()
+
+	_, err := king.ParseTunnelArgs(
+		[]string{"bind_port=2333"},
+	)
 	if err == nil {
 		t.Fatal("expected error for missing ports")
 	}
 }
 
-func TestParseRatholeArgs_InvalidBindPort(t *testing.T) {
-	_, err := parseRatholeArgs([]string{"bind_port=abc ports=5000-5100"})
+func TestParseTunnelArgs_InvalidBindPort(t *testing.T) {
+	t.Parallel()
+
+	_, err := king.ParseTunnelArgs(
+		[]string{"bind_port=abc ports=5000-5100"},
+	)
 	if err == nil {
 		t.Fatal("expected error for invalid bind_port")
 	}
 }
 
-// --- buildSyncRatholes ---
+// --- BuildSyncTunnels ---
 
-func TestBuildSyncRatholes_Empty(t *testing.T) {
-	result := buildSyncRatholes(nil)
+func TestBuildSyncTunnels_Empty(t *testing.T) {
+	t.Parallel()
+
+	result := king.BuildSyncTunnels(nil)
 	if len(result) != 0 {
-		t.Fatalf("expected 0 sync ratholes, got %d", len(result))
+		t.Fatalf(
+			"expected 0 sync tunnels, got %d", len(result),
+		)
 	}
 }
 
-func TestBuildSyncRatholes_Single(t *testing.T) {
-	result := buildSyncRatholes([]ratholeConfig{
-		{BindPort: 2333, Ports: "5000-5100"},
+func TestBuildSyncTunnels_Single(t *testing.T) {
+	t.Parallel()
+
+	result := king.BuildSyncTunnels([]king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
 	})
+
 	if len(result) != 1 {
-		t.Fatalf("expected 1 sync rathole, got %d", len(result))
+		t.Fatalf(
+			"expected 1 sync tunnel, got %d", len(result),
+		)
 	}
-	if result[0].BindPort != 2333 {
-		t.Fatalf("expected bind_port 2333, got %d", result[0].BindPort)
+
+	if result[0].BindPort != testBindPort {
+		t.Fatalf(
+			"expected bind_port 2333, got %d",
+			result[0].BindPort,
+		)
 	}
-	if result[0].Ports != "5000-5100" {
-		t.Fatalf("expected ports 5000-5100, got %s", result[0].Ports)
+
+	if result[0].Ports != testPortRange1 {
+		t.Fatalf(
+			"expected ports 5000-5100, got %s",
+			result[0].Ports,
+		)
 	}
 }
 
-func TestBuildSyncRatholes_Multiple(t *testing.T) {
-	result := buildSyncRatholes([]ratholeConfig{
-		{BindPort: 2333, Ports: "5000-5100"},
-		{BindPort: 2334, Ports: "6000-6050"},
+func TestBuildSyncTunnels_Multiple(t *testing.T) {
+	t.Parallel()
+
+	result := king.BuildSyncTunnels([]king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+		{BindPort: testBindPort2, Ports: testPortRange2},
 	})
+
 	if len(result) != 2 {
-		t.Fatalf("expected 2 sync ratholes, got %d", len(result))
+		t.Fatalf(
+			"expected 2 sync tunnels, got %d", len(result),
+		)
 	}
-	if result[1].BindPort != 2334 {
-		t.Fatalf("expected second bind_port 2334, got %d", result[1].BindPort)
+
+	if result[1].BindPort != testBindPort2 {
+		t.Fatalf(
+			"expected second bind_port 2334, got %d",
+			result[1].BindPort,
+		)
 	}
 }
 
-// --- computeReadyServiceIDs ---
+// --- ComputeReadyServiceIDs ---
 
 func TestComputeReadyServiceIDs_MatchingService(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	ts := newTunnelServer(2333, nil)
-	ts.quicConns["svc-1"] = nil // presence in map is what matters
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1", ShuttingDown: false},
-		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
+
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 1 {
-		t.Fatalf("expected 1 ready service, got %d", len(ids))
+		t.Fatalf(
+			"expected 1 ready service, got %d", len(ids),
+		)
 	}
+
 	if ids[0] != "svc-1" {
 		t.Fatalf("expected svc-1, got %s", ids[0])
 	}
 }
 
 func TestComputeReadyServiceIDs_DifferentHost(t *testing.T) {
-	host := "9.9.9.9"
-	bindPort := 2333
-	ts := newTunnelServer(2333, nil)
-	ts.quicConns["svc-1"] = nil
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
+
+	*currentState.Services[0].Host = testDifferentHost
+	*currentState.Services[0].BindPort = testBindPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (different host), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (different host), got %d",
+			len(ids),
+		)
 	}
 }
 
 func TestComputeReadyServiceIDs_NilHostAndBindPort(t *testing.T) {
-	ts := newTunnelServer(2333, nil)
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1"},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1", nil, nil,
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (nil host/bind_port), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (nil host/bind_port), got %d",
+			len(ids),
+		)
 	}
 }
 
 func TestComputeReadyServiceIDs_MissingLing(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	ts := newTunnelServer(2333, nil)
-	ts.quicConns["svc-1"] = nil
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{},
-	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+		[]state.Ling{},
+	)
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
+	}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
+
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (missing ling), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (missing ling), got %d",
+			len(ids),
+		)
 	}
 }
 
 func TestComputeReadyServiceIDs_ShuttingDownLing(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	ts := newTunnelServer(2333, nil)
-	ts.quicConns["svc-1"] = nil
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1", ShuttingDown: true},
-		},
+		[]state.Ling{newTestLing("ling-1", true)},
+	)
+
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (shutting down ling), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (shutting down ling), got %d",
+			len(ids),
+		)
 	}
 }
 
 func TestComputeReadyServiceIDs_NoQUICConnection(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	ts := newTunnelServer(2333, nil)
-	// no entry in ts.quicConns
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
+
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (no QUIC connection), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (no QUIC connection), got %d",
+			len(ids),
+		)
 	}
 }
 
-func TestComputeReadyServiceIDs_NonMatchingRathole(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 9999
-	ts := newTunnelServer(2333, nil)
-	ts.quicConns["svc-1"] = nil
+func TestComputeReadyServiceIDs_NonMatchingTunnel(t *testing.T) {
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
+
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testNonMatchPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (bind_port mismatch), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (bind_port mismatch), got %d",
+			len(ids),
+		)
 	}
 }
 
-func TestComputeReadyServiceIDs_MultipleServicesPartialReady(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	ts := newTunnelServer(2333, nil)
-	ts.quicConns["svc-1"] = nil
-	// svc-2 has no QUIC connection
+func TestComputeReadyServiceIDs_MultipleServicesPartialReady(
+	t *testing.T,
+) {
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Host: &host, BindPort: &bindPort},
-			{ServiceID: "svc-2", LingID: "ling-2", Host: &host, BindPort: &bindPort},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	currentState := newTestState(
+		[]state.Service{
+			newTestService(
+				"svc-1", "ling-1",
+				new(string), new(int),
+			),
+			newTestService(
+				"svc-2", "ling-2",
+				new(string), new(int),
+			),
 		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-			{LingID: "ling-2"},
+		[]state.Ling{
+			newTestLing("ling-1", false),
+			newTestLing("ling-2", false),
 		},
+	)
+
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+	*currentState.Services[1].Host = testHost
+	*currentState.Services[1].BindPort = testBindPort
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 1 {
-		t.Fatalf("expected 1 ready service, got %d", len(ids))
+		t.Fatalf(
+			"expected 1 ready service, got %d", len(ids),
+		)
 	}
+
 	if ids[0] != "svc-1" {
 		t.Fatalf("expected svc-1, got %s", ids[0])
 	}
 }
 
 func TestComputeReadyServiceIDs_EmptyState(t *testing.T) {
-	ts := newTunnelServer(2333, nil)
-	s := &state.State{}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	t.Parallel()
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	currentState := newTestState(nil, nil)
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
+	}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange1},
+	}
+
+	ids := king.ComputeReadyServiceIDs(
+		currentState, tunnels, tunnelConfigs, testHost,
+	)
+
 	if len(ids) != 0 {
-		t.Fatalf("expected 0 ready services (empty state), got %d", len(ids))
+		t.Fatalf(
+			"expected 0 ready services (empty state), got %d",
+			len(ids),
+		)
 	}
 }
 
-// --- onStateChanged ---
+// --- OnStateChanged ---
 
 func TestOnStateChanged_UpdatesServicesMap(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	remotePort := 39701
-	ts := newTunnelServer(2333, nil)
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39701-39710"}}
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Token:      "tok-1",
-				Host:       &host,
-				BindPort:   &bindPort,
-				RemotePort: &remotePort,
-			},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1", ShuttingDown: false},
-		},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
+	}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange3},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	currentState := newTestState(
+		[]state.Service{
+			newTestServiceWithToken(
+				"svc-1", "ling-1", "tok-1",
+				new(string), new(int), new(int),
+			),
+		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
 
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-	auth, exists := ts.services["svc-1"]
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+	*currentState.Services[0].RemotePort = testRemotePort1
+
+	king.OnStateChanged(
+		t.Context(), currentState,
+		tunnels, tunnelConfigs, testHost,
+	)
+
+	auth, exists := tunnelSrv.GetServiceAuth("svc-1")
 	if !exists {
 		t.Fatal("expected svc-1 in services map")
 	}
-	if auth.token != "tok-1" {
-		t.Fatalf("expected token tok-1, got %s", auth.token)
+
+	if auth.Token != "tok-1" {
+		t.Fatalf("expected token tok-1, got %s", auth.Token)
 	}
 }
 
 func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	remotePort := 39711
-	ts := newTunnelServer(2333, nil)
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39711-39720"}}
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Token:      "tok-1",
-				Host:       &host,
-				BindPort:   &bindPort,
-				RemotePort: &remotePort,
-			},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1", ShuttingDown: true},
-		},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
+	}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange4},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	currentState := newTestState(
+		[]state.Service{
+			newTestServiceWithToken(
+				"svc-1", "ling-1", "tok-1",
+				new(string), new(int), new(int),
+			),
+		},
+		[]state.Ling{newTestLing("ling-1", true)},
+	)
 
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-	if len(ts.services) != 0 {
-		t.Fatalf("expected 0 services (ling shutting down), got %d", len(ts.services))
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+	*currentState.Services[0].RemotePort = testRemotePort2
+
+	king.OnStateChanged(
+		t.Context(), currentState,
+		tunnels, tunnelConfigs, testHost,
+	)
+
+	serviceCount := tunnelSrv.ServiceCount()
+	if serviceCount != 0 {
+		t.Fatalf(
+			"expected 0 services (ling shutting down), got %d",
+			serviceCount,
+		)
 	}
 }
 
 func TestOnStateChanged_ExcludesDifferentHost(t *testing.T) {
-	host := "9.9.9.9"
-	bindPort := 2333
-	remotePort := 39721
-	ts := newTunnelServer(2333, nil)
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39721-39730"}}
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Token:      "tok-1",
-				Host:       &host,
-				BindPort:   &bindPort,
-				RemotePort: &remotePort,
-			},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
+	}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange5},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	currentState := newTestState(
+		[]state.Service{
+			newTestServiceWithToken(
+				"svc-1", "ling-1", "tok-1",
+				new(string), new(int), new(int),
+			),
+		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
 
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-	if len(ts.services) != 0 {
-		t.Fatalf("expected 0 services (different host), got %d", len(ts.services))
+	*currentState.Services[0].Host = testDifferentHost
+	*currentState.Services[0].BindPort = testBindPort
+	*currentState.Services[0].RemotePort = testRemotePort3
+
+	king.OnStateChanged(
+		t.Context(), currentState,
+		tunnels, tunnelConfigs, testHost,
+	)
+
+	serviceCount := tunnelSrv.ServiceCount()
+	if serviceCount != 0 {
+		t.Fatalf(
+			"expected 0 services (different host), got %d",
+			serviceCount,
+		)
 	}
 }
 
 func TestOnStateChanged_ExcludesNilFields(t *testing.T) {
-	ts := newTunnelServer(2333, nil)
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39731-39740"}}
+	t.Parallel()
 
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1", Token: "tok-1"},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
+	}
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange6},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	currentState := newTestState(
+		[]state.Service{
+			newTestServiceWithToken(
+				"svc-1", "ling-1", "tok-1",
+				nil, nil, nil,
+			),
+		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
 
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-	if len(ts.services) != 0 {
-		t.Fatalf("expected 0 services (nil fields), got %d", len(ts.services))
+	king.OnStateChanged(
+		t.Context(), currentState,
+		tunnels, tunnelConfigs, testHost,
+	)
+
+	serviceCount := tunnelSrv.ServiceCount()
+	if serviceCount != 0 {
+		t.Fatalf(
+			"expected 0 services (nil fields), got %d",
+			serviceCount,
+		)
 	}
 }
 
-func TestOnStateChanged_MultipleRatholes(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort1 := 2333
-	bindPort2 := 2334
-	remotePort1 := 39741
-	remotePort2 := 39751
-	ts1 := newTunnelServer(2333, nil)
-	ts2 := newTunnelServer(2334, nil)
-	tunnels := map[int]*tunnelServer{2333: ts1, 2334: ts2}
-	ratholes := []ratholeConfig{
-		{BindPort: 2333, Ports: "39741-39750"},
-		{BindPort: 2334, Ports: "39751-39760"},
+func buildMultiTunnelState() *state.State {
+	currentState := newTestState(
+		[]state.Service{
+			newTestServiceWithToken(
+				"svc-1", "ling-1", "tok-1",
+				new(string), new(int), new(int),
+			),
+			newTestServiceWithToken(
+				"svc-2", "ling-2", "tok-2",
+				new(string), new(int), new(int),
+			),
+		},
+		[]state.Ling{
+			newTestLing("ling-1", false),
+			newTestLing("ling-2", false),
+		},
+	)
+
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+	*currentState.Services[0].RemotePort = testRemotePort4
+	*currentState.Services[1].Host = testHost
+	*currentState.Services[1].BindPort = testBindPort2
+	*currentState.Services[1].RemotePort = testRemotePort5
+
+	return currentState
+}
+
+func TestOnStateChanged_MultipleTunnels(t *testing.T) {
+	t.Parallel()
+
+	tunnelSrv1 := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv2 := king.NewTunnelServer(testBindPort2, nil)
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort:  tunnelSrv1,
+		testBindPort2: tunnelSrv2,
 	}
 
-	s := &state.State{
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Token:      "tok-1",
-				Host:       &host,
-				BindPort:   &bindPort1,
-				RemotePort: &remotePort1,
-			},
-			{
-				ServiceID:  "svc-2",
-				LingID:     "ling-2",
-				Token:      "tok-2",
-				Host:       &host,
-				BindPort:   &bindPort2,
-				RemotePort: &remotePort2,
-			},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-			{LingID: "ling-2"},
-		},
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange7},
+		{BindPort: testBindPort2, Ports: testPortRange8},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	king.OnStateChanged(
+		t.Context(), buildMultiTunnelState(),
+		tunnels, tunnelConfigs, testHost,
+	)
 
-	ts1.mu.RLock()
-	_, hasSvc1 := ts1.services["svc-1"]
-	_, hasSvc2InTs1 := ts1.services["svc-2"]
-	ts1.mu.RUnlock()
-
-	ts2.mu.RLock()
-	_, hasSvc2 := ts2.services["svc-2"]
-	_, hasSvc1InTs2 := ts2.services["svc-1"]
-	ts2.mu.RUnlock()
+	_, hasSvc1 := tunnelSrv1.GetServiceAuth("svc-1")
+	_, hasSvc2InTs1 := tunnelSrv1.GetServiceAuth("svc-2")
+	_, hasSvc2 := tunnelSrv2.GetServiceAuth("svc-2")
+	_, hasSvc1InTs2 := tunnelSrv2.GetServiceAuth("svc-1")
 
 	if !hasSvc1 {
 		t.Fatal("expected svc-1 in ts1 services")
 	}
+
 	if hasSvc2InTs1 {
 		t.Fatal("svc-2 should not be in ts1")
 	}
+
 	if !hasSvc2 {
 		t.Fatal("expected svc-2 in ts2 services")
 	}
+
 	if hasSvc1InTs2 {
 		t.Fatal("svc-1 should not be in ts2")
 	}
 }
 
 func TestOnStateChanged_ClearsServicesOnEmpty(t *testing.T) {
-	host := "1.2.3.4"
-	bindPort := 2333
-	remotePort := 39761
-	ts := newTunnelServer(2333, nil)
-	ts.services["svc-old"] = serviceAuth{token: "old-tok"}
-	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39761-39770"}}
+	t.Parallel()
 
-	// First call with a valid service
-	s := &state.State{
-		Services: []state.StateService{
-			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Token:      "tok-1",
-				Host:       &host,
-				BindPort:   &bindPort,
-				RemotePort: &remotePort,
-			},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1"},
-		},
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetServiceAuth(
+		"svc-old", king.ServiceAuth{Token: "old-tok"},
+	)
+
+	tunnels := map[int]*king.TunnelServer{
+		testBindPort: tunnelSrv,
 	}
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
-
-	ts.mu.RLock()
-	if len(ts.services) != 1 {
-		ts.mu.RUnlock()
-		t.Fatalf("expected 1 service after first call, got %d", len(ts.services))
+	tunnelConfigs := []king.TunnelConfig{
+		{BindPort: testBindPort, Ports: testPortRange9},
 	}
-	ts.mu.RUnlock()
 
-	// Second call with empty services replaces the map
-	s2 := &state.State{}
-	onStateChanged(s2, tunnels, ratholes, "1.2.3.4")
+	currentState := newTestState(
+		[]state.Service{
+			newTestServiceWithToken(
+				"svc-1", "ling-1", "tok-1",
+				new(string), new(int), new(int),
+			),
+		},
+		[]state.Ling{newTestLing("ling-1", false)},
+	)
 
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-	if len(ts.services) != 0 {
-		t.Fatalf("expected 0 services after clearing, got %d", len(ts.services))
+	*currentState.Services[0].Host = testHost
+	*currentState.Services[0].BindPort = testBindPort
+	*currentState.Services[0].RemotePort = testRemotePort6
+
+	king.OnStateChanged(
+		t.Context(), currentState,
+		tunnels, tunnelConfigs, testHost,
+	)
+
+	serviceCount := tunnelSrv.ServiceCount()
+	if serviceCount != 1 {
+		t.Fatalf(
+			"expected 1 service after first call, got %d",
+			serviceCount,
+		)
+	}
+
+	emptyState := newTestState(nil, nil)
+
+	king.OnStateChanged(
+		t.Context(), emptyState,
+		tunnels, tunnelConfigs, testHost,
+	)
+
+	serviceCount = tunnelSrv.ServiceCount()
+	if serviceCount != 0 {
+		t.Fatalf(
+			"expected 0 services after clearing, got %d",
+			serviceCount,
+		)
 	}
 }
 
-// --- syncer.triggerSync ---
+// --- Syncer.TriggerSync ---
 
 func TestTriggerSync_SendsNotification(t *testing.T) {
-	s := &syncer{
-		notify: make(chan struct{}, 1),
-	}
+	t.Parallel()
 
-	s.triggerSync()
+	syncerInstance := king.NewSyncer(
+		"", "", "", "",
+		nil,
+		make(chan struct{}, 1),
+		&sync.Mutex{},
+		nil, nil,
+	)
+
+	syncerInstance.TriggerSync()
 
 	select {
-	case <-s.notify:
+	case <-syncerInstance.Notify():
 	default:
-		t.Fatal("expected notification on notify channel")
+		t.Fatal(
+			"expected notification on notify channel",
+		)
 	}
 }
 
 func TestTriggerSync_DoesNotBlockWhenFull(t *testing.T) {
-	s := &syncer{
-		notify: make(chan struct{}, 1),
-	}
+	t.Parallel()
 
-	// Fill the channel
-	s.notify <- struct{}{}
+	notifyChan := make(chan struct{}, 1)
 
-	// Should not block
-	s.triggerSync()
+	syncerInstance := king.NewSyncer(
+		"", "", "", "",
+		nil,
+		notifyChan,
+		&sync.Mutex{},
+		nil, nil,
+	)
 
-	// Drain and verify there's exactly one message
-	<-s.notify
+	notifyChan <- struct{}{}
+
+	syncerInstance.TriggerSync()
+
+	<-notifyChan
+
 	select {
-	case <-s.notify:
-		t.Fatal("expected only one notification in channel")
+	case <-notifyChan:
+		t.Fatal(
+			"expected only one notification in channel",
+		)
 	default:
 	}
 }

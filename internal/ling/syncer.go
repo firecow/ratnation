@@ -4,20 +4,30 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 )
 
+const (
+	syncInterval = 1 * time.Second
+)
+
+var errUnsupportedURLScheme = errors.New("unsupported URL scheme")
+
 type syncPayload struct {
-	LingID            string        `json:"ling_id"`
-	ShuttingDown      bool          `json:"shutting_down"`
-	Ratholes          []syncRathole `json:"ratholes"`
-	ReadyServiceIDs   []string      `json:"ready_service_ids"`
-	PreferredLocation string        `json:"preferred_location"`
+	LingID            string       `json:"lingId"`
+	ShuttingDown      bool         `json:"shuttingDown"`
+	Tunnels           []syncTunnel `json:"tunnels"`
+	ReadyServiceIDs   []string     `json:"readyServiceIds"`
+	PreferredLocation string       `json:"preferredLocation"`
 }
 
-type syncRathole struct {
+type syncTunnel struct {
 	Name string `json:"name"`
 }
 
@@ -25,70 +35,122 @@ type lingSyncer struct {
 	councilHost       string
 	lingID            string
 	preferredLocation string
-	ratholes          []syncRathole
+	tunnels           []syncTunnel
 	readyServiceIDs   func() []string
 	shuttingDown      func() bool
 	notify            chan struct{}
+	httpTransport     http.RoundTripper
 }
 
-func (s *lingSyncer) run(ctx context.Context) {
-	s.sync(ctx)
-	ticker := time.NewTicker(1 * time.Second)
+func (syncer *lingSyncer) run(ctx context.Context) {
+	syncer.sync(ctx)
+
+	ticker := time.NewTicker(syncInterval)
+
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.sync(ctx)
-		case <-s.notify:
-			s.sync(ctx)
+			syncer.sync(ctx)
+		case <-syncer.notify:
+			syncer.sync(ctx)
 		}
 	}
 }
 
-func (s *lingSyncer) triggerSync() {
+func (syncer *lingSyncer) triggerSync() {
 	select {
-	case s.notify <- struct{}{}:
+	case syncer.notify <- struct{}{}:
 	default:
 	}
 }
 
-func (s *lingSyncer) sync(ctx context.Context) {
-	readyIDs := s.readyServiceIDs()
+func validateCouncilHost(councilHost string) (*url.URL, error) {
+	baseURL, err := url.Parse(councilHost)
+	if err != nil {
+		return nil, fmt.Errorf("parsing council host URL: %w", err)
+	}
+
+	if baseURL.Scheme != "http" && baseURL.Scheme != "https" {
+		return nil, fmt.Errorf(
+			"scheme %q: %w", baseURL.Scheme, errUnsupportedURLScheme,
+		)
+	}
+
+	return baseURL, nil
+}
+
+func buildSyncURL(baseURL *url.URL) *url.URL {
+	return &url.URL{
+		Scheme:      baseURL.Scheme,
+		Opaque:      "",
+		User:        baseURL.User,
+		Host:        baseURL.Host,
+		Path:        path.Join(baseURL.Path, "/ling"),
+		RawPath:     "",
+		OmitHost:    false,
+		ForceQuery:  false,
+		RawQuery:    "",
+		Fragment:    "",
+		RawFragment: "",
+	}
+}
+
+func (syncer *lingSyncer) sync(ctx context.Context) {
+	readyIDs := syncer.readyServiceIDs()
 	if readyIDs == nil {
 		readyIDs = []string{}
 	}
 
 	payload := syncPayload{
-		LingID:            s.lingID,
-		ShuttingDown:      s.shuttingDown(),
-		Ratholes:          s.ratholes,
+		LingID:            syncer.lingID,
+		ShuttingDown:      syncer.shuttingDown(),
+		Tunnels:           syncer.tunnels,
 		ReadyServiceIDs:   readyIDs,
-		PreferredLocation: s.preferredLocation,
+		PreferredLocation: syncer.preferredLocation,
 	}
 
 	body, err := json.Marshal(payload)
 	if err != nil {
 		slog.Error("Failed to marshal ling sync payload", "error", err)
+
 		return
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, s.councilHost+"/ling", bytes.NewReader(body))
+	baseURL, err := validateCouncilHost(syncer.councilHost)
 	if err != nil {
-		slog.Error("Failed to create ling sync request", "error", err)
+		slog.Error("Failed to validate council host", "error", err)
+
 		return
 	}
+
+	syncURL := buildSyncURL(baseURL)
+
+	req, err := http.NewRequestWithContext(
+		ctx, http.MethodPut,
+		syncURL.String(), bytes.NewReader(body),
+	)
+	if err != nil {
+		slog.Error("Failed to build sync request", "error", err)
+
+		return
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := syncer.httpTransport.RoundTrip(req)
 	if err != nil {
 		slog.Error("Failed to sync with council", "error", err)
+
 		return
 	}
-	resp.Body.Close()
+
+	_ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("Failed to sync with council", "status_code", resp.StatusCode)
+		slog.Error("Council sync returned non-OK status")
 	}
 }

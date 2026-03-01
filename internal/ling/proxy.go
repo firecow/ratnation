@@ -1,6 +1,8 @@
 package ling
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -10,175 +12,259 @@ import (
 	"time"
 )
 
-type proxyTarget struct {
+const (
+	proxyTargetWaitTimeout = 30 * time.Second
+	dialMaxRetries         = 3
+	dialRetryDelay         = 100 * time.Millisecond
+)
+
+// ProxyTarget holds the address of a single upstream target.
+type ProxyTarget struct {
 	host       string
 	remotePort int
 }
 
-func proxyTargetAddr(t proxyTarget) string {
-	return net.JoinHostPort(t.host, strconv.Itoa(t.remotePort))
+func proxyTargetAddr(target ProxyTarget) string {
+	return net.JoinHostPort(target.host, strconv.Itoa(target.remotePort))
 }
 
-type tcpProxy struct {
+// TCPProxy is a round-robin TCP proxy that forwards connections to upstream targets.
+type TCPProxy struct {
 	name       string
 	bindPort   int
 	mu         sync.RWMutex
-	targets    []proxyTarget
+	targets    []ProxyTarget
 	counter    atomic.Uint64
 	listener   net.Listener
 	closeOnce  sync.Once
-	hasTargets chan struct{} // closed when targets are available, reset when empty
+	hasTargets chan struct{}
 
 	upstreamMu sync.Mutex
-	upstreams  map[string][]net.Conn // target addr -> active upstream connections
+	upstreams  map[string][]net.Conn
 }
 
-func newTCPProxy(name string, bindPort int) *tcpProxy {
-	return &tcpProxy{
+// NewTCPProxy creates a new TCPProxy with the given name and bind port.
+func NewTCPProxy(name string, bindPort int) *TCPProxy {
+	return &TCPProxy{
 		name:       name,
 		bindPort:   bindPort,
-		upstreams:  make(map[string][]net.Conn),
+		mu:         sync.RWMutex{},
+		targets:    nil,
+		counter:    atomic.Uint64{},
+		listener:   nil,
+		closeOnce:  sync.Once{},
 		hasTargets: make(chan struct{}),
+		upstreamMu: sync.Mutex{},
+		upstreams:  make(map[string][]net.Conn),
 	}
 }
 
-func (p *tcpProxy) updateTargets(targets []proxyTarget) {
-	p.mu.Lock()
-	oldTargets := p.targets
-	p.targets = targets
+// ReadTargets returns a snapshot of the current proxy targets (thread-safe).
+func (proxy *TCPProxy) ReadTargets() []ProxyTarget {
+	proxy.mu.RLock()
+	defer proxy.mu.RUnlock()
+
+	return proxy.targets
+}
+
+func (proxy *TCPProxy) updateTargets(targets []ProxyTarget) {
+	proxy.mu.Lock()
+
+	proxy.targets = targets
+
 	if len(targets) > 0 {
 		select {
-		case <-p.hasTargets:
+		case <-proxy.hasTargets:
 		default:
-			close(p.hasTargets)
+			close(proxy.hasTargets)
 		}
 	} else {
 		select {
-		case <-p.hasTargets:
-			p.hasTargets = make(chan struct{})
+		case <-proxy.hasTargets:
+			proxy.hasTargets = make(chan struct{})
 		default:
 		}
 	}
-	p.mu.Unlock()
 
-	// Find removed targets and close their upstream connections
-	newAddrs := make(map[string]bool)
-	for _, t := range targets {
-		newAddrs[proxyTargetAddr(t)] = true
-	}
-
-	p.upstreamMu.Lock()
-	for _, t := range oldTargets {
-		addr := proxyTargetAddr(t)
-		if !newAddrs[addr] {
-			for _, conn := range p.upstreams[addr] {
-				conn.Close()
-			}
-			delete(p.upstreams, addr)
-		}
-	}
-	p.upstreamMu.Unlock()
+	proxy.mu.Unlock()
 }
 
-func (p *tcpProxy) trackUpstream(addr string, conn net.Conn) {
-	p.upstreamMu.Lock()
-	p.upstreams[addr] = append(p.upstreams[addr], conn)
-	p.upstreamMu.Unlock()
+func (proxy *TCPProxy) trackUpstream(addr string, conn net.Conn) {
+	proxy.upstreamMu.Lock()
+	proxy.upstreams[addr] = append(proxy.upstreams[addr], conn)
+	proxy.upstreamMu.Unlock()
 }
 
-func (p *tcpProxy) untrackUpstream(addr string, conn net.Conn) {
-	p.upstreamMu.Lock()
-	conns := p.upstreams[addr]
-	for i, c := range conns {
-		if c == conn {
-			p.upstreams[addr] = append(conns[:i], conns[i+1:]...)
+func (proxy *TCPProxy) untrackUpstream(addr string, conn net.Conn) {
+	proxy.upstreamMu.Lock()
+
+	conns := proxy.upstreams[addr]
+
+	for index, candidate := range conns {
+		if candidate == conn {
+			proxy.upstreams[addr] = append(
+				conns[:index], conns[index+1:]...,
+			)
+
 			break
 		}
 	}
-	p.upstreamMu.Unlock()
+
+	proxy.upstreamMu.Unlock()
 }
 
-func (p *tcpProxy) start() error {
-	listener, err := net.Listen("tcp", net.JoinHostPort("0.0.0.0", strconv.Itoa(p.bindPort)))
-	if err != nil {
-		return err
+func (proxy *TCPProxy) start(ctx context.Context) error {
+	listenConfig := net.ListenConfig{
+		KeepAlive: 0,
 	}
-	p.listener = listener
 
-	slog.Info("TCP proxy started", "name", p.name, "bind_port", p.bindPort)
+	listener, err := listenConfig.Listen(
+		ctx, "tcp",
+		net.JoinHostPort("0.0.0.0", strconv.Itoa(proxy.bindPort)),
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"listening on port %d: %w", proxy.bindPort, err,
+		)
+	}
+
+	proxy.listener = listener
+
+	slog.Info(
+		"TCP proxy started",
+		"name", proxy.name, "bind_port", proxy.bindPort,
+	)
 
 	go func() {
 		for {
-			conn, err := listener.Accept()
-			if err != nil {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
 				return
 			}
-			go p.handleConn(conn)
+
+			go proxy.handleConn(ctx, conn)
 		}
 	}()
 
 	return nil
 }
 
-func (p *tcpProxy) handleConn(clientConn net.Conn) {
-	defer clientConn.Close()
+func (proxy *TCPProxy) handleConn(
+	ctx context.Context,
+	clientConn net.Conn,
+) {
+	defer func() { _ = clientConn.Close() }()
 
-	deadline := time.After(30 * time.Second)
+	upstream, addr, ok := proxy.dialUpstream(ctx)
+	if !ok {
+		return
+	}
 
-	var targets []proxyTarget
+	defer func() { _ = upstream.Close() }()
+
+	proxy.trackUpstream(addr, upstream)
+
+	defer proxy.untrackUpstream(addr, upstream)
+
+	done := make(chan struct{})
+
+	go func() {
+		_, _ = io.Copy(upstream, clientConn)
+
+		close(done)
+	}()
+
+	_, _ = io.Copy(clientConn, upstream)
+
+	<-done
+}
+
+func (proxy *TCPProxy) dialUpstream(
+	ctx context.Context,
+) (net.Conn, string, bool) {
+	dialer := net.Dialer{
+		Timeout: 0,
+	}
+
+	for attempt := range dialMaxRetries {
+		target, found := proxy.waitForTarget()
+		if !found {
+			return nil, "", false
+		}
+
+		addr := proxyTargetAddr(target)
+
+		upstream, err := dialer.DialContext(ctx, "tcp", addr)
+		if err == nil {
+			return upstream, addr, true
+		}
+
+		slog.Error(
+			"Failed to dial upstream",
+			"name", proxy.name, "addr", addr,
+			"error", err, "attempt", attempt+1,
+		)
+
+		select {
+		case <-ctx.Done():
+			return nil, "", false
+		case <-time.After(dialRetryDelay):
+		}
+	}
+
+	return nil, "", false
+}
+
+func (proxy *TCPProxy) waitForTarget() (ProxyTarget, bool) {
+	deadline := time.After(proxyTargetWaitTimeout)
+
 	for {
-		p.mu.RLock()
-		targets = p.targets
-		hasTargets := p.hasTargets
-		p.mu.RUnlock()
+		proxy.mu.RLock()
+		targets := proxy.targets
+		hasTargets := proxy.hasTargets
+		proxy.mu.RUnlock()
 
 		if len(targets) > 0 {
-			break
+			idx := proxy.counter.Add(1) - 1
+
+			return targets[idx%uint64(len(targets))], true
 		}
 
 		select {
 		case <-hasTargets:
 			continue
 		case <-deadline:
-			return
+			return ProxyTarget{host: "", remotePort: 0}, false
 		}
 	}
-
-	// Round-robin
-	idx := p.counter.Add(1) - 1
-	target := targets[idx%uint64(len(targets))]
-
-	addr := proxyTargetAddr(target)
-	upstream, err := net.Dial("tcp", addr)
-	if err != nil {
-		slog.Error("Failed to dial upstream", "name", p.name, "addr", addr, "error", err)
-		return
-	}
-	defer upstream.Close()
-
-	p.trackUpstream(addr, upstream)
-	defer p.untrackUpstream(addr, upstream)
-
-	done := make(chan struct{})
-	go func() {
-		_, _ = io.Copy(upstream, clientConn)
-		close(done)
-	}()
-	_, _ = io.Copy(clientConn, upstream)
-	<-done
 }
 
-func (p *tcpProxy) close() {
-	p.closeOnce.Do(func() {
-		if p.listener != nil {
-			p.listener.Close()
+func (proxy *TCPProxy) close() {
+	proxy.closeOnce.Do(func() {
+		if proxy.listener != nil {
+			_ = proxy.listener.Close()
 		}
-		p.mu.Lock()
+
+		proxy.mu.Lock()
+
 		select {
-		case <-p.hasTargets:
+		case <-proxy.hasTargets:
 		default:
-			close(p.hasTargets)
+			close(proxy.hasTargets)
 		}
-		p.mu.Unlock()
+
+		proxy.mu.Unlock()
+
+		proxy.upstreamMu.Lock()
+
+		for addr, conns := range proxy.upstreams {
+			for _, conn := range conns {
+				_ = conn.Close()
+			}
+
+			delete(proxy.upstreams, addr)
+		}
+
+		proxy.upstreamMu.Unlock()
 	})
 }

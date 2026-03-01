@@ -1,14 +1,25 @@
 package council
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
-func startCleaner(s *state.State, mu *sync.RWMutex, hub *wsHub, stop <-chan struct{}) {
+const staleThresholdMillis = 10000
+
+// StartCleaner starts the background cleaner loop that removes stale kings,
+// lings, and orphaned services from state.
+func StartCleaner(
+	ctx context.Context,
+	currentState *state.State,
+	stateMutex *sync.RWMutex,
+	hub *WSHub,
+	stop <-chan struct{},
+) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -17,87 +28,145 @@ func startCleaner(s *state.State, mu *sync.RWMutex, hub *wsHub, stop <-chan stru
 		case <-stop:
 			return
 		case <-ticker.C:
-			runCleaner(s, mu, hub)
+			RunCleaner(ctx, currentState, stateMutex, hub)
 		}
 	}
 }
 
-func runCleaner(s *state.State, mu *sync.RWMutex, hub *wsHub) {
-	mu.Lock()
+// RunCleaner performs a single cleaner pass, removing stale kings, lings,
+// and orphaned services from state.
+func RunCleaner(
+	ctx context.Context,
+	currentState *state.State,
+	stateMutex *sync.RWMutex,
+	hub *WSHub,
+) {
+	stateMutex.Lock()
 
 	stateChanged := false
 	now := time.Now().UnixMilli()
-	staleThreshold := now - 10000
+	threshold := now - staleThresholdMillis
 
-	// Remove stale kings
-	kings := s.Kings[:0]
-	for _, king := range s.Kings {
-		if king.Beat <= staleThreshold {
+	stateChanged = cleanStaleKings(currentState, threshold) || stateChanged
+	stateChanged = cleanStaleLings(currentState, threshold) || stateChanged
+	stateChanged = cleanOrphanedServices(currentState) || stateChanged
+
+	if stateChanged {
+		currentState.Revision++
+		stateMutex.Unlock()
+		hub.Broadcast(ctx)
+
+		return
+	}
+
+	stateMutex.Unlock()
+}
+
+func cleanStaleKings(currentState *state.State, threshold int64) bool {
+	changed := false
+	kings := currentState.Kings[:0]
+
+	for _, king := range currentState.Kings {
+		if king.Beat <= threshold {
 			slog.Info("Removing stale king", "host", king.Host, "bind_port", king.BindPort)
-			stateChanged = true
+
+			changed = true
+
 			continue
 		}
+
 		kings = append(kings, king)
 	}
-	s.Kings = kings
 
-	// Remove stale lings
-	lings := s.Lings[:0]
-	for _, ling := range s.Lings {
-		if ling.Beat <= staleThreshold {
+	currentState.Kings = kings
+
+	return changed
+}
+
+func cleanStaleLings(currentState *state.State, threshold int64) bool {
+	changed := false
+	lings := currentState.Lings[:0]
+
+	for _, ling := range currentState.Lings {
+		if ling.Beat <= threshold {
 			slog.Info("Removing stale ling", "ling_id", ling.LingID)
-			stateChanged = true
+
+			changed = true
+
 			continue
 		}
+
 		lings = append(lings, ling)
 	}
-	s.Lings = lings
 
-	// Remove services whose king or ling is missing
-	services := s.Services[:0]
-	for _, svc := range s.Services {
-		kingFound := false
-		for _, king := range s.Kings {
-			if svc.Host != nil && svc.BindPort != nil && king.Host == *svc.Host && king.BindPort == *svc.BindPort {
-				kingFound = true
-				break
-			}
-		}
+	currentState.Lings = lings
 
-		lingFound := false
-		for _, ling := range s.Lings {
-			if ling.LingID == svc.LingID {
-				lingFound = true
-				break
-			}
-		}
+	return changed
+}
 
-		// Unprovisioned services (no king assigned) only need their ling
+func cleanOrphanedServices(currentState *state.State) bool {
+	changed := false
+	services := currentState.Services[:0]
+
+	for _, svc := range currentState.Services {
 		if svc.BindPort == nil {
-			if lingFound {
+			if hasLing(currentState, svc.LingID) {
 				services = append(services, svc)
 			} else {
-				slog.Info("Removing orphaned service (ling missing)", "name", svc.Name, "service_id", svc.ServiceID)
-				stateChanged = true
+				slog.Info(
+					"Removing orphaned service (ling missing)",
+					"name", svc.Name,
+					"service_id", svc.ServiceID,
+				)
+
+				changed = true
 			}
+
 			continue
 		}
+
+		kingFound := hasKingForService(currentState, &svc)
+		lingFound := hasLing(currentState, svc.LingID)
 
 		if kingFound && lingFound {
 			services = append(services, svc)
 		} else {
-			slog.Info("Removing orphaned service", "name", svc.Name, "service_id", svc.ServiceID, "king_found", kingFound, "ling_found", lingFound)
-			stateChanged = true
+			slog.Info(
+				"Removing orphaned service",
+				"name", svc.Name,
+				"service_id", svc.ServiceID,
+				"king_found", kingFound,
+				"ling_found", lingFound,
+			)
+
+			changed = true
 		}
 	}
-	s.Services = services
 
-	if stateChanged {
-		s.Revision++
-		mu.Unlock()
-		hub.broadcast()
-		return
+	currentState.Services = services
+
+	return changed
+}
+
+func hasKingForService(currentState *state.State, svc *state.Service) bool {
+	for _, king := range currentState.Kings {
+		if svc.Host != nil &&
+			svc.BindPort != nil &&
+			king.Host == *svc.Host &&
+			king.BindPort == *svc.BindPort {
+			return true
+		}
 	}
 
-	mu.Unlock()
+	return false
+}
+
+func hasLing(currentState *state.State, lingID string) bool {
+	for _, ling := range currentState.Lings {
+		if ling.LingID == lingID {
+			return true
+		}
+	}
+
+	return false
 }

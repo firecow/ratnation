@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -16,8 +18,22 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+const (
+	quicKeepAlivePeriod   = 2 * time.Second
+	quicMaxIdleTimeout    = 4 * time.Second
+	quicMaxIncomingStream = 1024
+	quicErrorRegFailed    = 1
+	quicErrorRejected     = 2
+	serviceIDHeaderBytes  = 2
+)
+
+var (
+	errKingNoCertificate        = errors.New("king has no certificate")
+	errKingRejectedRegistration = errors.New("king rejected registration")
+)
+
 type tunnelControlMessage struct {
-	ServiceID string `json:"service_id"`
+	ServiceID string `json:"serviceId"`
 	Token     string `json:"token"`
 }
 
@@ -25,98 +41,61 @@ type tunnelControlResponse struct {
 	OK bool `json:"ok"`
 }
 
-type tunnelService struct {
+// TunnelService holds connection details for a single tunneled service.
+type TunnelService struct {
 	serviceID string
 	token     string
 	localAddr string
 }
 
-type tunnelClient struct {
+// TunnelClient manages QUIC connections to king nodes.
+type TunnelClient struct {
 	mu          sync.Mutex
-	connections map[string]quic.Connection // king_bind_addr -> connection
+	connections map[string]*quic.Conn
 	onConnected func()
 }
 
-func newTunnelClient() *tunnelClient {
-	return &tunnelClient{
-		connections: make(map[string]quic.Connection),
+// NewTunnelClient creates a new TunnelClient with an initialized connection map.
+func NewTunnelClient() *TunnelClient {
+	return &TunnelClient{
+		mu:          sync.Mutex{},
+		connections: make(map[string]*quic.Conn),
+		onConnected: nil,
 	}
 }
 
-func (tc *tunnelClient) ensureConnection(ctx context.Context, group *kingGroup, localAddrs map[string]string) {
-	kingAddr := net.JoinHostPort(group.host, strconv.Itoa(group.bindPort))
+func (tc *TunnelClient) ensureConnection(
+	ctx context.Context,
+	group *KingGroup,
+	localAddrs map[string]string,
+) {
+	kingAddr := net.JoinHostPort(
+		group.host, strconv.Itoa(group.bindPort),
+	)
 
-	tc.mu.Lock()
-	if conn, exists := tc.connections[kingAddr]; exists {
-		select {
-		case <-conn.Context().Done():
-			delete(tc.connections, kingAddr)
-		default:
-			tc.mu.Unlock()
-			return
-		}
-	}
-	tc.mu.Unlock()
-
-	if group.certPEM == "" {
-		slog.Warn("King has no certificate, skipping connection", "king_addr", kingAddr)
+	if tc.hasActiveConnection(kingAddr) {
 		return
 	}
 
-	certPool := x509.NewCertPool()
-	certPool.AppendCertsFromPEM([]byte(group.certPEM))
-
-	tlsConfig := &tls.Config{
-		RootCAs:    certPool,
-		ServerName: "burrow",
-		NextProtos: []string{"burrow"},
-		MinVersion: tls.VersionTLS13,
-	}
-
-	conn, err := quic.DialAddr(ctx, kingAddr, tlsConfig, &quic.Config{
-		KeepAlivePeriod:    5 * time.Second,
-		MaxIncomingStreams: 1024,
-	})
+	conn, err := tc.dialKing(ctx, kingAddr, group.certPEM)
 	if err != nil {
-		slog.Error("Failed to dial king", "king_addr", kingAddr, "error", err)
+		slog.Error(
+			"Failed to connect to king",
+			"king_addr", kingAddr, "error", err,
+		)
+
 		return
 	}
 
-	stream, err := conn.OpenStreamSync(ctx)
+	err = tc.authenticateServices(ctx, conn, kingAddr, group.services)
 	if err != nil {
-		slog.Error("Failed to open control stream", "error", err)
-		_ = conn.CloseWithError(1, "failed to open control stream")
+		slog.Error(
+			"Failed to authenticate with king",
+			"king_addr", kingAddr, "error", err,
+		)
+
 		return
 	}
-
-	messages := make([]tunnelControlMessage, 0, len(group.services))
-	for _, svc := range group.services {
-		messages = append(messages, tunnelControlMessage{
-			ServiceID: svc.serviceID,
-			Token:     svc.token,
-		})
-	}
-
-	if err := json.NewEncoder(stream).Encode(messages); err != nil {
-		slog.Error("Failed to send control messages", "error", err)
-		_ = conn.CloseWithError(1, "failed to send control messages")
-		return
-	}
-
-	var response tunnelControlResponse
-	if err := json.NewDecoder(stream).Decode(&response); err != nil {
-		slog.Error("Failed to read control response", "error", err)
-		_ = conn.CloseWithError(1, "failed to read control response")
-		return
-	}
-
-	if !response.OK {
-		slog.Error("King rejected registration", "king_addr", kingAddr)
-		_ = conn.CloseWithError(2, "registration rejected")
-		return
-	}
-
-	slog.Info("Connected to king", "king_addr", kingAddr)
 
 	tc.mu.Lock()
 	tc.connections[kingAddr] = conn
@@ -126,69 +105,229 @@ func (tc *tunnelClient) ensureConnection(ctx context.Context, group *kingGroup, 
 		tc.onConnected()
 	}
 
-	go func() {
-		for {
-			dataStream, err := conn.AcceptStream(ctx)
-			if err != nil {
-				if ctx.Err() != nil {
-					return
-				}
-				slog.Info("King connection closed", "king_addr", kingAddr)
-				tc.mu.Lock()
-				delete(tc.connections, kingAddr)
-				tc.mu.Unlock()
+	go tc.acceptDataStreams(ctx, conn, kingAddr, localAddrs)
+}
+
+func (tc *TunnelClient) hasActiveConnection(kingAddr string) bool {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+
+	conn, exists := tc.connections[kingAddr]
+	if !exists {
+		return false
+	}
+
+	select {
+	case <-conn.Context().Done():
+		delete(tc.connections, kingAddr)
+
+		return false
+	default:
+		return true
+	}
+}
+
+func (tc *TunnelClient) dialKing(
+	ctx context.Context,
+	kingAddr string,
+	certPEM string,
+) (*quic.Conn, error) {
+	if certPEM == "" {
+		return nil, fmt.Errorf(
+			"king at %s: %w", kingAddr, errKingNoCertificate,
+		)
+	}
+
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM([]byte(certPEM))
+
+	tlsConfig := &tls.Config{
+		RootCAs:    certPool,
+		ServerName: "burrow",
+		NextProtos: []string{"burrow"},
+		MinVersion: tls.VersionTLS13,
+	}
+
+	conn, err := quic.DialAddr(
+		ctx, kingAddr, tlsConfig,
+		&quic.Config{
+			KeepAlivePeriod:    quicKeepAlivePeriod,
+			MaxIdleTimeout:     quicMaxIdleTimeout,
+			MaxIncomingStreams: quicMaxIncomingStream,
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("dialing king: %w", err)
+	}
+
+	return conn, nil
+}
+
+func (tc *TunnelClient) authenticateServices(
+	ctx context.Context,
+	conn *quic.Conn,
+	kingAddr string,
+	services []TunnelService,
+) error {
+	stream, err := conn.OpenStreamSync(ctx)
+	if err != nil {
+		_ = conn.CloseWithError(
+			quicErrorRegFailed, "failed to open control stream",
+		)
+
+		return fmt.Errorf("opening control stream: %w", err)
+	}
+
+	messages := make([]tunnelControlMessage, 0, len(services))
+
+	for _, svc := range services {
+		messages = append(messages, tunnelControlMessage{
+			ServiceID: svc.serviceID,
+			Token:     svc.token,
+		})
+	}
+
+	err = json.NewEncoder(stream).Encode(messages)
+	if err != nil {
+		_ = conn.CloseWithError(
+			quicErrorRegFailed, "failed to send control messages",
+		)
+
+		return fmt.Errorf("sending control messages: %w", err)
+	}
+
+	var response tunnelControlResponse
+
+	err = json.NewDecoder(stream).Decode(&response)
+	if err != nil {
+		_ = conn.CloseWithError(
+			quicErrorRegFailed, "failed to read control response",
+		)
+
+		return fmt.Errorf("reading control response: %w", err)
+	}
+
+	if !response.OK {
+		_ = conn.CloseWithError(
+			quicErrorRejected, "registration rejected",
+		)
+
+		return fmt.Errorf(
+			"king at %s: %w", kingAddr, errKingRejectedRegistration,
+		)
+	}
+
+	slog.Info("Connected to king", "king_addr", kingAddr)
+
+	return nil
+}
+
+func (tc *TunnelClient) acceptDataStreams(
+	ctx context.Context,
+	conn *quic.Conn,
+	kingAddr string,
+	localAddrs map[string]string,
+) {
+	serveCtx := context.WithoutCancel(ctx)
+
+	for {
+		dataStream, err := conn.AcceptStream(serveCtx)
+		if err != nil {
+			if ctx.Err() != nil {
 				return
 			}
 
-			go handleDataStream(dataStream, localAddrs)
+			slog.Info("King connection closed", "king_addr", kingAddr)
+
+			tc.mu.Lock()
+			delete(tc.connections, kingAddr)
+			tc.mu.Unlock()
+
+			return
 		}
-	}()
+
+		go handleDataStream(serveCtx, dataStream, localAddrs)
+	}
 }
 
-func handleDataStream(stream quic.Stream, localAddrs map[string]string) {
-	headerBuf := make([]byte, 2)
-	if _, err := io.ReadFull(stream, headerBuf); err != nil {
-		stream.Close()
-		return
+func readServiceID(stream *quic.Stream) (string, error) {
+	headerBuf := make([]byte, serviceIDHeaderBytes)
+
+	_, err := io.ReadFull(stream, headerBuf)
+	if err != nil {
+		return "", fmt.Errorf("reading header: %w", err)
 	}
 
 	serviceIDLen := binary.BigEndian.Uint16(headerBuf)
 	serviceIDBuf := make([]byte, serviceIDLen)
-	if _, err := io.ReadFull(stream, serviceIDBuf); err != nil {
-		stream.Close()
-		return
-	}
 
-	localAddr, ok := localAddrs[string(serviceIDBuf)]
-	if !ok {
-		stream.Close()
-		return
-	}
-
-	localConn, err := net.Dial("tcp", localAddr)
+	_, err = io.ReadFull(stream, serviceIDBuf)
 	if err != nil {
-		slog.Error("Failed to dial local service", "local_addr", localAddr, "error", err)
-		stream.Close()
+		return "", fmt.Errorf("reading service ID: %w", err)
+	}
+
+	return string(serviceIDBuf), nil
+}
+
+func handleDataStream(
+	ctx context.Context,
+	stream *quic.Stream,
+	localAddrs map[string]string,
+) {
+	serviceID, err := readServiceID(stream)
+	if err != nil {
+		_ = stream.Close()
+
+		return
+	}
+
+	localAddr, addrFound := localAddrs[serviceID]
+	if !addrFound {
+		_ = stream.Close()
+
+		return
+	}
+
+	dialer := net.Dialer{
+		Timeout: 0,
+	}
+
+	localConn, err := dialer.DialContext(ctx, "tcp", localAddr)
+	if err != nil {
+		slog.Error(
+			"Failed to dial local service",
+			"local_addr", localAddr, "error", err,
+		)
+
+		_ = stream.Close()
+
 		return
 	}
 
 	done := make(chan struct{})
+
 	go func() {
 		_, _ = io.Copy(localConn, stream)
-		localConn.Close()
+		_ = localConn.Close()
+
 		close(done)
 	}()
+
 	_, _ = io.Copy(stream, localConn)
-	stream.Close()
+
+	_ = stream.Close()
 	stream.CancelRead(0)
+
 	<-done
 }
 
-func (tc *tunnelClient) closeAll() {
+func (tc *TunnelClient) closeAll() {
 	tc.mu.Lock()
 	defer tc.mu.Unlock()
+
 	for addr, conn := range tc.connections {
-		_ = conn.CloseWithError(0, "shutting down")
+		_ = conn.CloseWithError(quicErrorCodeCloseClean, "shutting down")
+
 		delete(tc.connections, addr)
 	}
 }

@@ -1,154 +1,286 @@
-package council
+package council_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/council"
+	"github.com/firecow/burrow/internal/state"
+)
+
+const (
+	testHostA = "1.2.3.4"
+	testHostB = "5.6.7.8"
 )
 
 func TestRunCleaner_RemovesStaleKing(t *testing.T) {
-	s := &state.State{
-		Kings: []state.StateKing{
-			{BindPort: 2333, Host: "1.2.3.4", Beat: time.Now().UnixMilli() - 11000},
+	t.Parallel()
+
+	currentState := &state.State{
+		Revision: 0,
+		Services: nil,
+		Kings: []state.King{
+			{
+				BindPort:     2333,
+				Host:         testHostA,
+				Ports:        "",
+				ShuttingDown: false,
+				Beat:         time.Now().UnixMilli() - 11000,
+				Location:     "",
+				CertPEM:      "",
+			},
 		},
+		Lings: nil,
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Kings) != 0 {
-		t.Fatalf("expected 0 kings, got %d", len(s.Kings))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Kings) != 0 {
+		t.Fatalf("expected 0 kings, got %d", len(currentState.Kings))
 	}
-	if s.Revision != 1 {
-		t.Fatalf("expected revision 1, got %d", s.Revision)
+
+	if currentState.Revision != 1 {
+		t.Fatalf("expected revision 1, got %d", currentState.Revision)
 	}
 }
 
 func TestRunCleaner_KeepsFreshKing(t *testing.T) {
-	s := &state.State{
-		Kings: []state.StateKing{
-			{BindPort: 2333, Host: "1.2.3.4", Beat: time.Now().UnixMilli()},
+	t.Parallel()
+
+	currentState := &state.State{
+		Revision: 0,
+		Services: nil,
+		Kings: []state.King{
+			{
+				BindPort:     2333,
+				Host:         testHostA,
+				Ports:        "",
+				ShuttingDown: false,
+				Beat:         time.Now().UnixMilli(),
+				Location:     "",
+				CertPEM:      "",
+			},
 		},
+		Lings: nil,
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Kings) != 1 {
-		t.Fatalf("expected 1 king, got %d", len(s.Kings))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Kings) != 1 {
+		t.Fatalf("expected 1 king, got %d", len(currentState.Kings))
 	}
-	if s.Revision != 0 {
-		t.Fatalf("expected revision 0, got %d", s.Revision)
+
+	if currentState.Revision != 0 {
+		t.Fatalf("expected revision 0, got %d", currentState.Revision)
 	}
 }
 
 func TestRunCleaner_RemovesStaleLing(t *testing.T) {
-	s := &state.State{
-		Lings: []state.StateLing{
-			{LingID: "ling-1", Beat: time.Now().UnixMilli() - 11000},
+	t.Parallel()
+
+	currentState := &state.State{
+		Revision: 0,
+		Services: nil,
+		Kings:    nil,
+		Lings: []state.Ling{
+			{
+				LingID:       "ling-1",
+				ShuttingDown: false,
+				Beat:         time.Now().UnixMilli() - 11000,
+			},
 		},
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Lings) != 0 {
-		t.Fatalf("expected 0 lings, got %d", len(s.Lings))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Lings) != 0 {
+		t.Fatalf("expected 0 lings, got %d", len(currentState.Lings))
 	}
 }
 
 func TestRunCleaner_RemovesOrphanedService(t *testing.T) {
-	host := "1.2.3.4"
+	t.Parallel()
+
+	host := testHostA
 	bindPort := 2333
 	remotePort := 5000
-	s := &state.State{
-		Services: []state.StateService{
+	currentState := &state.State{
+		Revision: 0,
+		Services: []state.Service{
 			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Host:       &host,
-				BindPort:   &bindPort,
-				RemotePort: &remotePort,
+				ServiceID:         "svc-1",
+				Name:              "",
+				Token:             "",
+				LingID:            "ling-1",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              &host,
+				BindPort:          &bindPort,
+				RemotePort:        &remotePort,
 			},
 		},
+		Kings: nil,
+		Lings: nil,
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Services) != 0 {
-		t.Fatalf("expected 0 services (orphaned), got %d", len(s.Services))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Services) != 0 {
+		t.Fatalf(
+			"expected 0 services (orphaned), got %d",
+			len(currentState.Services),
+		)
 	}
 }
 
 func TestRunCleaner_KeepsServiceWithKingAndLing(t *testing.T) {
-	host := "1.2.3.4"
+	t.Parallel()
+
+	host := testHostA
 	bindPort := 2333
 	remotePort := 5000
-	s := &state.State{
-		Kings: []state.StateKing{
-			{BindPort: 2333, Host: "1.2.3.4", Beat: time.Now().UnixMilli()},
-		},
-		Lings: []state.StateLing{
-			{LingID: "ling-1", Beat: time.Now().UnixMilli()},
-		},
-		Services: []state.StateService{
+	currentState := &state.State{
+		Revision: 0,
+		Kings: []state.King{
 			{
-				ServiceID:  "svc-1",
-				LingID:     "ling-1",
-				Host:       &host,
-				BindPort:   &bindPort,
-				RemotePort: &remotePort,
+				BindPort:     2333,
+				Host:         testHostA,
+				Ports:        "",
+				ShuttingDown: false,
+				Beat:         time.Now().UnixMilli(),
+				Location:     "",
+				CertPEM:      "",
+			},
+		},
+		Lings: []state.Ling{
+			{
+				LingID:       "ling-1",
+				ShuttingDown: false,
+				Beat:         time.Now().UnixMilli(),
+			},
+		},
+		Services: []state.Service{
+			{
+				ServiceID:         "svc-1",
+				Name:              "",
+				Token:             "",
+				LingID:            "ling-1",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              &host,
+				BindPort:          &bindPort,
+				RemotePort:        &remotePort,
 			},
 		},
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Services) != 1 {
-		t.Fatalf("expected 1 service, got %d", len(s.Services))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Services) != 1 {
+		t.Fatalf("expected 1 service, got %d", len(currentState.Services))
 	}
 }
 
 func TestRunCleaner_KeepsUnprovisionedServiceWithLing(t *testing.T) {
-	s := &state.State{
-		Lings: []state.StateLing{
-			{LingID: "ling-1", Beat: time.Now().UnixMilli()},
+	t.Parallel()
+
+	currentState := &state.State{
+		Revision: 0,
+		Kings:    nil,
+		Lings: []state.Ling{
+			{
+				LingID:       "ling-1",
+				ShuttingDown: false,
+				Beat:         time.Now().UnixMilli(),
+			},
 		},
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1"},
+		Services: []state.Service{
+			{
+				ServiceID:         "svc-1",
+				Name:              "",
+				Token:             "",
+				LingID:            "ling-1",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
+			},
 		},
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Services) != 1 {
-		t.Fatalf("expected 1 service (unprovisioned but ling exists), got %d", len(s.Services))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Services) != 1 {
+		t.Fatalf(
+			"expected 1 service (unprovisioned but ling exists), got %d",
+			len(currentState.Services),
+		)
 	}
 }
 
 func TestRunCleaner_RemovesUnprovisionedServiceWithoutLing(t *testing.T) {
-	s := &state.State{
-		Services: []state.StateService{
-			{ServiceID: "svc-1", LingID: "ling-1"},
+	t.Parallel()
+
+	currentState := &state.State{
+		Revision: 0,
+		Kings:    nil,
+		Lings:    nil,
+		Services: []state.Service{
+			{
+				ServiceID:         "svc-1",
+				Name:              "",
+				Token:             "",
+				LingID:            "ling-1",
+				PreferredLocation: "",
+				LingReady:         false,
+				KingReady:         false,
+				Host:              nil,
+				BindPort:          nil,
+				RemotePort:        nil,
+			},
 		},
 	}
-	var mu sync.RWMutex
-	hub := newWSHub()
 
-	runCleaner(s, &mu, hub)
+	var stateMutex sync.RWMutex
 
-	if len(s.Services) != 0 {
-		t.Fatalf("expected 0 services (ling missing), got %d", len(s.Services))
+	hub := council.NewWSHub()
+
+	council.RunCleaner(context.Background(), currentState, &stateMutex, hub)
+
+	if len(currentState.Services) != 0 {
+		t.Fatalf(
+			"expected 0 services (ling missing), got %d",
+			len(currentState.Services),
+		)
 	}
 }

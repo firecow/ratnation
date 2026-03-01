@@ -1,41 +1,22 @@
-# Ratnation 
+# Burrow
 
-[![QA](https://github.com/firecow/ratnation/actions/workflows/quality-assurance.yml/badge.svg)](https://github.com/firecow/ratnation/actions/workflows/quality-assurance.yml)
+[![QA](https://github.com/firecow/burrow/actions/workflows/quality-assurance.yml/badge.svg)](https://github.com/firecow/burrow/actions/workflows/quality-assurance.yml)
 
-Service mesh based on [rathole](https://github.com/rapiz1/rathole) and [traefik](https://github.com/traefik/traefik)
+Distributed service mesh with native QUIC tunneling. Single static Go binary with zero runtime dependencies.
 
-Consists of three different applications to operate
+Consists of three components:
 
-### ratcouncil
-A service discovery application, used by ratkings and ratlings
+### council
+Service discovery and state coordination. Used by kings and lings.
 
-### ratking
-Controlplane application starting rathole servers, must be reachable for all ratlings
+### king
+QUIC tunnel server. Must be reachable by all lings.
 
-### ratling
-Dataplane application managing rathole clients and traefik proxies, can be completely isolated
-
-### encryption
-Since reverse tunnel and proxy encryption isn't implemented yet, it's highly recommended that network traffic encryption is handled via other mechanisms (e.g. [Nebula](https://github.com/slackhq/nebula) or VPN), unless you are absolutely sure your traffic will stay in-house
-
+### ling
+QUIC tunnel client and TCP proxy. Can be completely isolated — only needs outbound connectivity.
 
 ## Quickstart
 
-Install `docker` and call `docker swarm init`
+Install `docker` and run `docker swarm init`
 
 See [stack.yml](./examples/docker-swarm/stack.yml) for deployment configuration
-
-```bash
-./example_deploy.sh
-```
-
-## Development
-
-### Requirements
-nodejs `>=18.x.x`
-
-### Code reloading script
-
-```
-node src/start-dev.mjs
-```
