@@ -1,8 +1,10 @@
 package king_test
 
 import (
+	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/firecow/burrow/internal/king"
 	"github.com/firecow/burrow/internal/state"
@@ -891,6 +893,84 @@ func TestOnStateChanged_ClearsServicesOnEmpty(t *testing.T) {
 			"expected 0 services after clearing, got %d",
 			serviceCount,
 		)
+	}
+}
+
+// --- WaitForDrain ---
+
+func TestWaitForDrain_EmptyImmediate(t *testing.T) {
+	t.Parallel()
+
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+
+	done := make(chan struct{})
+
+	go func() {
+		tunnelSrv.WaitForDrain(t.Context())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("waitForDrain should return immediately when no connections")
+	}
+}
+
+func TestWaitForDrain_WaitsForRemoval(t *testing.T) {
+	t.Parallel()
+
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	done := make(chan struct{})
+
+	go func() {
+		tunnelSrv.WaitForDrain(t.Context())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("waitForDrain should not return while connections exist")
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	tunnelSrv.RemoveQUICConn("svc-1")
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("waitForDrain should return after connection removed")
+	}
+}
+
+func TestWaitForDrain_RespectsContextTimeout(t *testing.T) {
+	t.Parallel()
+
+	tunnelSrv := king.NewTunnelServer(testBindPort, nil)
+	tunnelSrv.SetQUICConn("svc-1", nil)
+
+	ctx, cancel := context.WithTimeout(
+		t.Context(), 100*time.Millisecond,
+	)
+	defer cancel()
+
+	done := make(chan struct{})
+
+	go func() {
+		tunnelSrv.WaitForDrain(ctx)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("waitForDrain should return on context cancellation")
+	}
+
+	if tunnelSrv.QUICConnCount() != 1 {
+		t.Fatal("connection should still exist after timeout")
 	}
 }
 
