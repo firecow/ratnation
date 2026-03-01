@@ -13,10 +13,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
       - uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.5
+
+  tidy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go mod tidy
+      - run: git diff --exit-code go.mod go.sum
+
+  gofix:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+      - run: go fix ./...
+      - run: git diff --exit-code
 
   test:
     runs-on: ubuntu-24.04
@@ -24,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.24"
       - run: go test -race ./...
 
   docker:
