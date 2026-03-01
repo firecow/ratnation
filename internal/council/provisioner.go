@@ -82,7 +82,8 @@ func collectUsedPorts(king *state.King, currentState *state.State) map[int]bool 
 	return used
 }
 
-// ProvisionService assigns the first available king port to a service.
+// ProvisionService assigns the first available king port to a service,
+// preferring kings that match the service's PreferredLocation.
 func ProvisionService(currentState *state.State, service *state.Service) {
 	available := AvailableKingPorts(currentState)
 	if len(available) == 0 {
@@ -91,19 +92,30 @@ func ProvisionService(currentState *state.State, service *state.Service) {
 		return
 	}
 
-	first := available[0]
-	remotePort := first.Ports[0]
+	selected := available[0]
 
-	service.Host = &first.King.Host
+	if service.PreferredLocation != "" {
+		for _, candidate := range available {
+			if candidate.King.Location == service.PreferredLocation {
+				selected = candidate
+
+				break
+			}
+		}
+	}
+
+	remotePort := selected.Ports[0]
+
+	service.Host = &selected.King.Host
 	service.RemotePort = &remotePort
-	service.BindPort = &first.King.BindPort
+	service.BindPort = &selected.King.BindPort
 
 	currentState.Revision++
 
 	slog.Info("Provisioned service",
 		"name", service.Name,
-		"host", first.King.Host,
-		"bind_port", first.King.BindPort,
+		"host", selected.King.Host,
+		"bind_port", selected.King.BindPort,
 		"remote_port", remotePort,
 	)
 }
