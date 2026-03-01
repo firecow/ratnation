@@ -11,14 +11,14 @@ networks:
     attachable: true
 
 services:
-  ratcouncil:
+  council:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [host]
     command: council --port 8080
     ports:
       - { target: 8080, published: 8080, protocol: tcp, mode: host }
 
-  ratking1:
+  king1:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [host]
     command:
@@ -28,11 +28,11 @@ services:
       --rathole="bind_port=2333 ports=5000-5001"
       --location=CPH
     ports:
-      - { target: 2333, published: 2333, protocol: tcp, mode: host }
+      - { target: 2333, published: 2333, protocol: udp, mode: host }
       - { target: 5000, published: 5000, protocol: tcp, mode: host }
       - { target: 5001, published: 5001, protocol: tcp, mode: host }
 
-  ratking2:
+  king2:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [host]
     command:
@@ -43,14 +43,14 @@ services:
       --rathole="bind_port=2335 ports=5004-5004"
       --location=AMS
     ports:
-      - { target: 2334, published: 2334, protocol: tcp, mode: host }
-      - { target: 2335, published: 2335, protocol: tcp, mode: host }
+      - { target: 2334, published: 2334, protocol: udp, mode: host }
+      - { target: 2335, published: 2335, protocol: udp, mode: host }
       - { target: 5002, published: 5002, protocol: tcp, mode: host }
       - { target: 5003, published: 5003, protocol: tcp, mode: host }
       - { target: 5004, published: 5004, protocol: tcp, mode: host }
 
-  # <editor-fold desc="Alpha services">
-  ratling-alpha:
+  # Alpha services
+  ling-alpha:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [alpha]
     command:
@@ -60,13 +60,12 @@ services:
     deploy: { update_config: { order: start-first, parallelism: 0 } }
   echoserver-alpha:
     hostname: echoserver-alpha
-    image: jmalloc/echo-server
+    image: jmalloc/echo-server:0.3.6
     networks: [alpha]
     deploy: { update_config: { order: start-first, parallelism: 0 } }
-  # </editor-fold>
 
-  # <editor-fold desc="Beta services">
-  ratling-beta:
+  # Beta services
+  ling-beta:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
     networks: [beta]
     command:
@@ -74,10 +73,9 @@ services:
       --council-host="http://172.17.0.1:8080"
       --proxy="name=alpha bind_port=2184"
     deploy: { update_config: { order: start-first, parallelism: 0 } }
-  # This requester service should be able to reach echoserver-alpha through the ratling-beta on port 2184
+  # This requester service should be able to reach echoserver-alpha through ling-beta on port 2184
   debug-requester-beta:
     image: firecow/ratnation:${DOCKER_TAG:-latest}
-    command: ["debug-requester", "--url=http://ratling-beta:2184"]
+    command: ["debug-requester", "--url=http://ling-beta:2184"]
     networks: [beta]
     deploy: { update_config: { order: start-first, parallelism: 0 } }
-  # </editor-fold>

@@ -1,15 +1,4 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:base",
-    ":disableDependencyDashboard",
-    ":maintainLockFilesWeekly"
-  ],
-  "recreateWhen": "always",
-  "packageRules": [
-    {
-      "matchUpdateTypes": ["minor", "patch", "lockFileMaintenance"],
-      "groupName": "All non-major"
-    }
-  ]
+  "extends": ["config:recommended"]
 }
