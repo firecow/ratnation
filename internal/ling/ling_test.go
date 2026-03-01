@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
-func TestParseRatholeArgs_Valid(t *testing.T) {
+func TestParseTunnelArgs_Valid(t *testing.T) {
 	args := []string{"name=myservice local_addr=127.0.0.1:8080"}
-	configs, err := parseRatholeArgs(args)
+	configs, err := parseTunnelArgs(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -24,12 +24,12 @@ func TestParseRatholeArgs_Valid(t *testing.T) {
 	}
 }
 
-func TestParseRatholeArgs_Multiple(t *testing.T) {
+func TestParseTunnelArgs_Multiple(t *testing.T) {
 	args := []string{
 		"name=svc1 local_addr=127.0.0.1:8080",
 		"name=svc2 local_addr=127.0.0.1:9090",
 	}
-	configs, err := parseRatholeArgs(args)
+	configs, err := parseTunnelArgs(args)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -41,32 +41,32 @@ func TestParseRatholeArgs_Multiple(t *testing.T) {
 	}
 }
 
-func TestParseRatholeArgs_MissingName(t *testing.T) {
+func TestParseTunnelArgs_MissingName(t *testing.T) {
 	args := []string{"local_addr=127.0.0.1:8080"}
-	_, err := parseRatholeArgs(args)
+	_, err := parseTunnelArgs(args)
 	if err == nil {
 		t.Fatal("expected error for missing name")
 	}
-	expected := "--rathole must have 'name' field"
+	expected := "--tunnel must have 'name' field"
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
 	}
 }
 
-func TestParseRatholeArgs_MissingLocalAddr(t *testing.T) {
+func TestParseTunnelArgs_MissingLocalAddr(t *testing.T) {
 	args := []string{"name=myservice"}
-	_, err := parseRatholeArgs(args)
+	_, err := parseTunnelArgs(args)
 	if err == nil {
 		t.Fatal("expected error for missing local_addr")
 	}
-	expected := "--rathole must have 'local_addr' field"
+	expected := "--tunnel must have 'local_addr' field"
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
 	}
 }
 
-func TestParseRatholeArgs_Empty(t *testing.T) {
-	configs, err := parseRatholeArgs(nil)
+func TestParseTunnelArgs_Empty(t *testing.T) {
+	configs, err := parseTunnelArgs(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -149,8 +149,8 @@ func TestComputeReadyServiceIDs_MatchingLing(t *testing.T) {
 			},
 		},
 	}
-	ratholeMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", ratholeMap)
+	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
+	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
 	if len(ids) != 1 || ids[0] != "svc-1" {
 		t.Errorf("expected [svc-1], got %v", ids)
 	}
@@ -167,14 +167,14 @@ func TestComputeReadyServiceIDs_NonMatchingLing(t *testing.T) {
 			},
 		},
 	}
-	ratholeMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", ratholeMap)
+	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
+	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
 	if len(ids) != 0 {
 		t.Errorf("expected empty, got %v", ids)
 	}
 }
 
-func TestComputeReadyServiceIDs_MissingRatholeEntry(t *testing.T) {
+func TestComputeReadyServiceIDs_MissingTunnelEntry(t *testing.T) {
 	s := &state.State{
 		Services: []state.StateService{
 			{
@@ -185,8 +185,8 @@ func TestComputeReadyServiceIDs_MissingRatholeEntry(t *testing.T) {
 			},
 		},
 	}
-	ratholeMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", ratholeMap)
+	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
+	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
 	if len(ids) != 0 {
 		t.Errorf("expected empty, got %v", ids)
 	}
@@ -203,8 +203,8 @@ func TestComputeReadyServiceIDs_KingNotReady(t *testing.T) {
 			},
 		},
 	}
-	ratholeMap := map[string]string{"web": "127.0.0.1:8080"}
-	ids := computeReadyServiceIDs(s, "ling-a", ratholeMap)
+	tunnelMap := map[string]string{"web": "127.0.0.1:8080"}
+	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
 	if len(ids) != 0 {
 		t.Errorf("expected empty, got %v", ids)
 	}
@@ -220,11 +220,11 @@ func TestComputeReadyServiceIDs_MultipleServices(t *testing.T) {
 			{ServiceID: "svc-5", Name: "web", LingID: "ling-a", KingReady: false},
 		},
 	}
-	ratholeMap := map[string]string{
+	tunnelMap := map[string]string{
 		"web": "127.0.0.1:8080",
 		"api": "127.0.0.1:9090",
 	}
-	ids := computeReadyServiceIDs(s, "ling-a", ratholeMap)
+	ids := computeReadyServiceIDs(s, "ling-a", tunnelMap)
 	if len(ids) != 2 {
 		t.Fatalf("expected 2 ready IDs, got %d: %v", len(ids), ids)
 	}

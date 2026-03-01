@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
 func startCleaner(s *state.State, mu *sync.RWMutex, hub *wsHub, stop <-chan struct{}) {

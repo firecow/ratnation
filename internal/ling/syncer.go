@@ -10,14 +10,14 @@ import (
 )
 
 type syncPayload struct {
-	LingID            string        `json:"ling_id"`
-	ShuttingDown      bool          `json:"shutting_down"`
-	Ratholes          []syncRathole `json:"ratholes"`
-	ReadyServiceIDs   []string      `json:"ready_service_ids"`
-	PreferredLocation string        `json:"preferred_location"`
+	LingID            string       `json:"ling_id"`
+	ShuttingDown      bool         `json:"shutting_down"`
+	Tunnels           []syncTunnel `json:"tunnels"`
+	ReadyServiceIDs   []string     `json:"ready_service_ids"`
+	PreferredLocation string       `json:"preferred_location"`
 }
 
-type syncRathole struct {
+type syncTunnel struct {
 	Name string `json:"name"`
 }
 
@@ -25,7 +25,7 @@ type lingSyncer struct {
 	councilHost       string
 	lingID            string
 	preferredLocation string
-	ratholes          []syncRathole
+	tunnels           []syncTunnel
 	readyServiceIDs   func() []string
 	shuttingDown      func() bool
 	notify            chan struct{}
@@ -63,7 +63,7 @@ func (s *lingSyncer) sync(ctx context.Context) {
 	payload := syncPayload{
 		LingID:            s.lingID,
 		ShuttingDown:      s.shuttingDown(),
-		Ratholes:          s.ratholes,
+		Tunnels:           s.tunnels,
 		ReadyServiceIDs:   readyIDs,
 		PreferredLocation: s.preferredLocation,
 	}

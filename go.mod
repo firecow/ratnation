@@ -1,4 +1,4 @@
-module github.com/firecow/ratnation
+module github.com/firecow/burrow
 
 go 1.24.0
 

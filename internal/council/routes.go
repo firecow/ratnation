@@ -11,33 +11,33 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 	"github.com/google/uuid"
 )
 
 type putKingRequest struct {
-	Host            string           `json:"host"`
-	ShuttingDown    bool             `json:"shutting_down"`
-	Ratholes        []putKingRathole `json:"ratholes"`
-	ReadyServiceIDs []string         `json:"ready_service_ids"`
-	Location        string           `json:"location"`
-	CertPEM         string           `json:"cert_pem"`
+	Host            string          `json:"host"`
+	ShuttingDown    bool            `json:"shutting_down"`
+	Tunnels         []putKingTunnel `json:"tunnels"`
+	ReadyServiceIDs []string        `json:"ready_service_ids"`
+	Location        string          `json:"location"`
+	CertPEM         string          `json:"cert_pem"`
 }
 
-type putKingRathole struct {
+type putKingTunnel struct {
 	BindPort int    `json:"bind_port"`
 	Ports    string `json:"ports"`
 }
 
 type putLingRequest struct {
-	LingID            string           `json:"ling_id"`
-	ShuttingDown      bool             `json:"shutting_down"`
-	Ratholes          []putLingRathole `json:"ratholes"`
-	ReadyServiceIDs   []string         `json:"ready_service_ids"`
-	PreferredLocation string           `json:"preferred_location"`
+	LingID            string          `json:"ling_id"`
+	ShuttingDown      bool            `json:"shutting_down"`
+	Tunnels           []putLingTunnel `json:"tunnels"`
+	ReadyServiceIDs   []string        `json:"ready_service_ids"`
+	PreferredLocation string          `json:"preferred_location"`
 }
 
-type putLingRathole struct {
+type putLingTunnel struct {
 	Name string `json:"name"`
 }
 
@@ -97,8 +97,8 @@ func handlePutKing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 
 		now := time.Now().UnixMilli()
 
-		for _, rathole := range req.Ratholes {
-			existingKing := findKing(s, rathole.Ports, req.Host)
+		for _, tunnel := range req.Tunnels {
+			existingKing := findKing(s, tunnel.Ports, req.Host)
 			if existingKing != nil {
 				changed := existingKing.ShuttingDown != req.ShuttingDown || existingKing.CertPEM != req.CertPEM
 				existingKing.ShuttingDown = req.ShuttingDown
@@ -115,8 +115,8 @@ func handlePutKing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 			}
 
 			s.Kings = append(s.Kings, state.StateKing{
-				BindPort:     rathole.BindPort,
-				Ports:        rathole.Ports,
+				BindPort:     tunnel.BindPort,
+				Ports:        tunnel.Ports,
 				Host:         req.Host,
 				Location:     req.Location,
 				Beat:         now,
@@ -181,7 +181,7 @@ func handlePutLing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 
 		now := time.Now().UnixMilli()
 
-		for _, rathole := range req.Ratholes {
+		for _, tunnel := range req.Tunnels {
 			existingLing := findLing(s, req.LingID)
 			if existingLing == nil {
 				s.Lings = append(s.Lings, state.StateLing{
@@ -202,7 +202,7 @@ func handlePutLing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 				mu.Lock()
 			}
 
-			existingService := findServiceByNameAndLing(s, rathole.Name, req.LingID)
+			existingService := findServiceByNameAndLing(s, tunnel.Name, req.LingID)
 			if existingService != nil {
 				mu.Unlock()
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -213,7 +213,7 @@ func handlePutLing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 			token := generateToken()
 			s.Services = append(s.Services, state.StateService{
 				ServiceID:         uuid.New().String(),
-				Name:              rathole.Name,
+				Name:              tunnel.Name,
 				Token:             token,
 				PreferredLocation: req.PreferredLocation,
 				LingID:            req.LingID,

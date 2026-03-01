@@ -3,7 +3,7 @@ package council
 import (
 	"testing"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
 func TestAvailableKingPorts_NoKings(t *testing.T) {

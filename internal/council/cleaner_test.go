@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
 func TestRunCleaner_RemovesStaleKing(t *testing.T) {

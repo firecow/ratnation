@@ -10,15 +10,15 @@ import (
 )
 
 type syncPayload struct {
-	Host            string        `json:"host"`
-	ShuttingDown    bool          `json:"shutting_down"`
-	Ratholes        []syncRathole `json:"ratholes"`
-	ReadyServiceIDs []string      `json:"ready_service_ids"`
-	Location        string        `json:"location"`
-	CertPEM         string        `json:"cert_pem"`
+	Host            string       `json:"host"`
+	ShuttingDown    bool         `json:"shutting_down"`
+	Tunnels         []syncTunnel `json:"tunnels"`
+	ReadyServiceIDs []string     `json:"ready_service_ids"`
+	Location        string       `json:"location"`
+	CertPEM         string       `json:"cert_pem"`
 }
 
-type syncRathole struct {
+type syncTunnel struct {
 	BindPort int    `json:"bind_port"`
 	Ports    string `json:"ports"`
 }
@@ -28,7 +28,7 @@ type syncer struct {
 	host            string
 	location        string
 	certPEM         string
-	ratholes        []syncRathole
+	tunnels         []syncTunnel
 	readyServiceIDs func() []string
 	shuttingDown    func() bool
 	notify          chan struct{}
@@ -61,7 +61,7 @@ func (s *syncer) sync(ctx context.Context) {
 	payload := syncPayload{
 		Host:            s.host,
 		ShuttingDown:    s.shuttingDown(),
-		Ratholes:        s.ratholes,
+		Tunnels:         s.tunnels,
 		ReadyServiceIDs: s.readyServiceIDs(),
 		Location:        s.location,
 		CertPEM:         s.certPEM,

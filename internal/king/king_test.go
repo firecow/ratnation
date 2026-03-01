@@ -3,13 +3,13 @@ package king
 import (
 	"testing"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
-// --- parseRatholeArgs ---
+// --- parseTunnelArgs ---
 
-func TestParseRatholeArgs_ValidSingle(t *testing.T) {
-	configs, err := parseRatholeArgs([]string{"bind_port=2333 ports=5000-5100"})
+func TestParseTunnelArgs_ValidSingle(t *testing.T) {
+	configs, err := parseTunnelArgs([]string{"bind_port=2333 ports=5000-5100"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -24,8 +24,8 @@ func TestParseRatholeArgs_ValidSingle(t *testing.T) {
 	}
 }
 
-func TestParseRatholeArgs_ValidMultiple(t *testing.T) {
-	configs, err := parseRatholeArgs([]string{
+func TestParseTunnelArgs_ValidMultiple(t *testing.T) {
+	configs, err := parseTunnelArgs([]string{
 		"bind_port=2333 ports=5000-5100",
 		"bind_port=2334 ports=6000-6050",
 	})
@@ -46,8 +46,8 @@ func TestParseRatholeArgs_ValidMultiple(t *testing.T) {
 	}
 }
 
-func TestParseRatholeArgs_Empty(t *testing.T) {
-	configs, err := parseRatholeArgs(nil)
+func TestParseTunnelArgs_Empty(t *testing.T) {
+	configs, err := parseTunnelArgs(nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -56,42 +56,42 @@ func TestParseRatholeArgs_Empty(t *testing.T) {
 	}
 }
 
-func TestParseRatholeArgs_MissingBindPort(t *testing.T) {
-	_, err := parseRatholeArgs([]string{"ports=5000-5100"})
+func TestParseTunnelArgs_MissingBindPort(t *testing.T) {
+	_, err := parseTunnelArgs([]string{"ports=5000-5100"})
 	if err == nil {
 		t.Fatal("expected error for missing bind_port")
 	}
 }
 
-func TestParseRatholeArgs_MissingPorts(t *testing.T) {
-	_, err := parseRatholeArgs([]string{"bind_port=2333"})
+func TestParseTunnelArgs_MissingPorts(t *testing.T) {
+	_, err := parseTunnelArgs([]string{"bind_port=2333"})
 	if err == nil {
 		t.Fatal("expected error for missing ports")
 	}
 }
 
-func TestParseRatholeArgs_InvalidBindPort(t *testing.T) {
-	_, err := parseRatholeArgs([]string{"bind_port=abc ports=5000-5100"})
+func TestParseTunnelArgs_InvalidBindPort(t *testing.T) {
+	_, err := parseTunnelArgs([]string{"bind_port=abc ports=5000-5100"})
 	if err == nil {
 		t.Fatal("expected error for invalid bind_port")
 	}
 }
 
-// --- buildSyncRatholes ---
+// --- buildSyncTunnels ---
 
-func TestBuildSyncRatholes_Empty(t *testing.T) {
-	result := buildSyncRatholes(nil)
+func TestBuildSyncTunnels_Empty(t *testing.T) {
+	result := buildSyncTunnels(nil)
 	if len(result) != 0 {
-		t.Fatalf("expected 0 sync ratholes, got %d", len(result))
+		t.Fatalf("expected 0 sync tunnels, got %d", len(result))
 	}
 }
 
-func TestBuildSyncRatholes_Single(t *testing.T) {
-	result := buildSyncRatholes([]ratholeConfig{
+func TestBuildSyncTunnels_Single(t *testing.T) {
+	result := buildSyncTunnels([]tunnelConfig{
 		{BindPort: 2333, Ports: "5000-5100"},
 	})
 	if len(result) != 1 {
-		t.Fatalf("expected 1 sync rathole, got %d", len(result))
+		t.Fatalf("expected 1 sync tunnel, got %d", len(result))
 	}
 	if result[0].BindPort != 2333 {
 		t.Fatalf("expected bind_port 2333, got %d", result[0].BindPort)
@@ -101,13 +101,13 @@ func TestBuildSyncRatholes_Single(t *testing.T) {
 	}
 }
 
-func TestBuildSyncRatholes_Multiple(t *testing.T) {
-	result := buildSyncRatholes([]ratholeConfig{
+func TestBuildSyncTunnels_Multiple(t *testing.T) {
+	result := buildSyncTunnels([]tunnelConfig{
 		{BindPort: 2333, Ports: "5000-5100"},
 		{BindPort: 2334, Ports: "6000-6050"},
 	})
 	if len(result) != 2 {
-		t.Fatalf("expected 2 sync ratholes, got %d", len(result))
+		t.Fatalf("expected 2 sync tunnels, got %d", len(result))
 	}
 	if result[1].BindPort != 2334 {
 		t.Fatalf("expected second bind_port 2334, got %d", result[1].BindPort)
@@ -131,9 +131,9 @@ func TestComputeReadyServiceIDs_MatchingService(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 1 {
 		t.Fatalf("expected 1 ready service, got %d", len(ids))
 	}
@@ -157,9 +157,9 @@ func TestComputeReadyServiceIDs_DifferentHost(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (different host), got %d", len(ids))
 	}
@@ -177,9 +177,9 @@ func TestComputeReadyServiceIDs_NilHostAndBindPort(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (nil host/bind_port), got %d", len(ids))
 	}
@@ -198,9 +198,9 @@ func TestComputeReadyServiceIDs_MissingLing(t *testing.T) {
 		Lings: []state.StateLing{},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (missing ling), got %d", len(ids))
 	}
@@ -221,9 +221,9 @@ func TestComputeReadyServiceIDs_ShuttingDownLing(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (shutting down ling), got %d", len(ids))
 	}
@@ -244,15 +244,15 @@ func TestComputeReadyServiceIDs_NoQUICConnection(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (no QUIC connection), got %d", len(ids))
 	}
 }
 
-func TestComputeReadyServiceIDs_NonMatchingRathole(t *testing.T) {
+func TestComputeReadyServiceIDs_NonMatchingTunnel(t *testing.T) {
 	host := "1.2.3.4"
 	bindPort := 9999
 	ts := newTunnelServer(2333, nil)
@@ -267,9 +267,9 @@ func TestComputeReadyServiceIDs_NonMatchingRathole(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (bind_port mismatch), got %d", len(ids))
 	}
@@ -293,9 +293,9 @@ func TestComputeReadyServiceIDs_MultipleServicesPartialReady(t *testing.T) {
 		},
 	}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 1 {
 		t.Fatalf("expected 1 ready service, got %d", len(ids))
 	}
@@ -308,9 +308,9 @@ func TestComputeReadyServiceIDs_EmptyState(t *testing.T) {
 	ts := newTunnelServer(2333, nil)
 	s := &state.State{}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "5000-5100"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "5000-5100"}}
 
-	ids := computeReadyServiceIDs(s, tunnels, ratholes, "1.2.3.4")
+	ids := computeReadyServiceIDs(s, tunnels, tunnelConfigs, "1.2.3.4")
 	if len(ids) != 0 {
 		t.Fatalf("expected 0 ready services (empty state), got %d", len(ids))
 	}
@@ -324,7 +324,7 @@ func TestOnStateChanged_UpdatesServicesMap(t *testing.T) {
 	remotePort := 39701
 	ts := newTunnelServer(2333, nil)
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39701-39710"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "39701-39710"}}
 
 	s := &state.State{
 		Services: []state.StateService{
@@ -342,7 +342,7 @@ func TestOnStateChanged_UpdatesServicesMap(t *testing.T) {
 		},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
@@ -361,7 +361,7 @@ func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
 	remotePort := 39711
 	ts := newTunnelServer(2333, nil)
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39711-39720"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "39711-39720"}}
 
 	s := &state.State{
 		Services: []state.StateService{
@@ -379,7 +379,7 @@ func TestOnStateChanged_ExcludesShuttingDownLing(t *testing.T) {
 		},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
@@ -394,7 +394,7 @@ func TestOnStateChanged_ExcludesDifferentHost(t *testing.T) {
 	remotePort := 39721
 	ts := newTunnelServer(2333, nil)
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39721-39730"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "39721-39730"}}
 
 	s := &state.State{
 		Services: []state.StateService{
@@ -412,7 +412,7 @@ func TestOnStateChanged_ExcludesDifferentHost(t *testing.T) {
 		},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
@@ -424,7 +424,7 @@ func TestOnStateChanged_ExcludesDifferentHost(t *testing.T) {
 func TestOnStateChanged_ExcludesNilFields(t *testing.T) {
 	ts := newTunnelServer(2333, nil)
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39731-39740"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "39731-39740"}}
 
 	s := &state.State{
 		Services: []state.StateService{
@@ -435,7 +435,7 @@ func TestOnStateChanged_ExcludesNilFields(t *testing.T) {
 		},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
@@ -444,7 +444,7 @@ func TestOnStateChanged_ExcludesNilFields(t *testing.T) {
 	}
 }
 
-func TestOnStateChanged_MultipleRatholes(t *testing.T) {
+func TestOnStateChanged_MultipleTunnels(t *testing.T) {
 	host := "1.2.3.4"
 	bindPort1 := 2333
 	bindPort2 := 2334
@@ -453,7 +453,7 @@ func TestOnStateChanged_MultipleRatholes(t *testing.T) {
 	ts1 := newTunnelServer(2333, nil)
 	ts2 := newTunnelServer(2334, nil)
 	tunnels := map[int]*tunnelServer{2333: ts1, 2334: ts2}
-	ratholes := []ratholeConfig{
+	tunnelConfigs := []tunnelConfig{
 		{BindPort: 2333, Ports: "39741-39750"},
 		{BindPort: 2334, Ports: "39751-39760"},
 	}
@@ -483,7 +483,7 @@ func TestOnStateChanged_MultipleRatholes(t *testing.T) {
 		},
 	}
 
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts1.mu.RLock()
 	_, hasSvc1 := ts1.services["svc-1"]
@@ -516,7 +516,7 @@ func TestOnStateChanged_ClearsServicesOnEmpty(t *testing.T) {
 	ts := newTunnelServer(2333, nil)
 	ts.services["svc-old"] = serviceAuth{token: "old-tok"}
 	tunnels := map[int]*tunnelServer{2333: ts}
-	ratholes := []ratholeConfig{{BindPort: 2333, Ports: "39761-39770"}}
+	tunnelConfigs := []tunnelConfig{{BindPort: 2333, Ports: "39761-39770"}}
 
 	// First call with a valid service
 	s := &state.State{
@@ -534,7 +534,7 @@ func TestOnStateChanged_ClearsServicesOnEmpty(t *testing.T) {
 			{LingID: "ling-1"},
 		},
 	}
-	onStateChanged(s, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts.mu.RLock()
 	if len(ts.services) != 1 {
@@ -545,7 +545,7 @@ func TestOnStateChanged_ClearsServicesOnEmpty(t *testing.T) {
 
 	// Second call with empty services replaces the map
 	s2 := &state.State{}
-	onStateChanged(s2, tunnels, ratholes, "1.2.3.4")
+	onStateChanged(s2, tunnels, tunnelConfigs, "1.2.3.4")
 
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()

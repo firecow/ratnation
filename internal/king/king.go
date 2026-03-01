@@ -15,11 +15,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 	"github.com/spf13/cobra"
 )
 
-type ratholeConfig struct {
+type tunnelConfig struct {
 	BindPort int
 	Ports    string
 }
@@ -29,36 +29,36 @@ func Command() *cobra.Command {
 		councilHost string
 		host        string
 		location    string
-		ratholeArgs []string
+		tunnelArgs  []string
 	)
 
 	cmd := &cobra.Command{
 		Use:   "king",
 		Short: "Start king",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ratholes, err := parseRatholeArgs(ratholeArgs)
+			tunnelConfigs, err := parseTunnelArgs(tunnelArgs)
 			if err != nil {
 				return err
 			}
-			if len(ratholes) == 0 {
-				return fmt.Errorf("at least one --rathole must be specified")
+			if len(tunnelConfigs) == 0 {
+				return fmt.Errorf("at least one --tunnel must be specified")
 			}
-			return run(cmd.Context(), councilHost, host, location, ratholes)
+			return run(cmd.Context(), councilHost, host, location, tunnelConfigs)
 		},
 	}
 
 	cmd.Flags().StringVar(&councilHost, "council-host", "http://localhost:8080", "Council host to synchronize from")
 	cmd.Flags().StringVar(&host, "host", "", "Host (domain or IP)")
 	cmd.Flags().StringVar(&location, "location", "", "Location identifier")
-	cmd.Flags().StringArrayVar(&ratholeArgs, "rathole", nil, "Rathole servers (bind_port=N ports=M-M)")
+	cmd.Flags().StringArrayVar(&tunnelArgs, "tunnel", nil, "Tunnel servers (bind_port=N ports=M-M)")
 	_ = cmd.MarkFlagRequired("host")
 	_ = cmd.MarkFlagRequired("location")
 
 	return cmd
 }
 
-func parseRatholeArgs(args []string) ([]ratholeConfig, error) {
-	configs := make([]ratholeConfig, 0, len(args))
+func parseTunnelArgs(args []string) ([]tunnelConfig, error) {
+	configs := make([]tunnelConfig, 0, len(args))
 	for _, arg := range args {
 		pairs := make(map[string]string)
 		for _, pair := range strings.Split(arg, " ") {
@@ -70,11 +70,11 @@ func parseRatholeArgs(args []string) ([]ratholeConfig, error) {
 
 		bindPortStr, ok := pairs["bind_port"]
 		if !ok {
-			return nil, fmt.Errorf("--rathole must have 'bind_port' field")
+			return nil, fmt.Errorf("--tunnel must have 'bind_port' field")
 		}
 		portsStr, ok := pairs["ports"]
 		if !ok {
-			return nil, fmt.Errorf("--rathole must have 'ports' field")
+			return nil, fmt.Errorf("--tunnel must have 'ports' field")
 		}
 
 		var bindPort int
@@ -82,12 +82,12 @@ func parseRatholeArgs(args []string) ([]ratholeConfig, error) {
 			return nil, fmt.Errorf("invalid bind_port: %s", bindPortStr)
 		}
 
-		configs = append(configs, ratholeConfig{BindPort: bindPort, Ports: portsStr})
+		configs = append(configs, tunnelConfig{BindPort: bindPort, Ports: portsStr})
 	}
 	return configs, nil
 }
 
-func run(ctx context.Context, councilHost, host, location string, ratholes []ratholeConfig) error {
+func run(ctx context.Context, councilHost, host, location string, tunnelConfigs []tunnelConfig) error {
 	tlsCert, certPEM, err := generateSelfSignedCert()
 	if err != nil {
 		return fmt.Errorf("failed to generate TLS certificate: %w", err)
@@ -99,7 +99,7 @@ func run(ctx context.Context, councilHost, host, location string, ratholes []rat
 	}
 
 	tunnels := make(map[int]*tunnelServer)
-	for _, r := range ratholes {
+	for _, r := range tunnelConfigs {
 		tunnels[r.BindPort] = newTunnelServer(r.BindPort, tlsConfig)
 	}
 
@@ -112,7 +112,7 @@ func run(ctx context.Context, councilHost, host, location string, ratholes []rat
 		if currentState == nil {
 			return []string{}
 		}
-		return computeReadyServiceIDs(currentState, tunnels, ratholes, host)
+		return computeReadyServiceIDs(currentState, tunnels, tunnelConfigs, host)
 	}
 
 	syncerInstance := &syncer{
@@ -121,7 +121,7 @@ func run(ctx context.Context, councilHost, host, location string, ratholes []rat
 		notify:          make(chan struct{}, 1),
 		location:        location,
 		certPEM:         certPEM,
-		ratholes:        buildSyncRatholes(ratholes),
+		tunnels:         buildSyncTunnels(tunnelConfigs),
 		readyServiceIDs: readyServiceIDs,
 		shuttingDown: func() bool {
 			mu.Lock()
@@ -138,7 +138,7 @@ func run(ctx context.Context, councilHost, host, location string, ratholes []rat
 		mu.Lock()
 		currentState = s
 		mu.Unlock()
-		onStateChanged(s, tunnels, ratholes, host)
+		onStateChanged(s, tunnels, tunnelConfigs, host)
 	})
 
 	// Start QUIC tunnel servers
@@ -191,15 +191,15 @@ func run(ctx context.Context, councilHost, host, location string, ratholes []rat
 	return nil
 }
 
-func buildSyncRatholes(ratholes []ratholeConfig) []syncRathole {
-	result := make([]syncRathole, 0, len(ratholes))
-	for _, r := range ratholes {
-		result = append(result, syncRathole(r))
+func buildSyncTunnels(tunnelConfigs []tunnelConfig) []syncTunnel {
+	result := make([]syncTunnel, 0, len(tunnelConfigs))
+	for _, r := range tunnelConfigs {
+		result = append(result, syncTunnel(r))
 	}
 	return result
 }
 
-func computeReadyServiceIDs(s *state.State, tunnels map[int]*tunnelServer, ratholes []ratholeConfig, host string) []string {
+func computeReadyServiceIDs(s *state.State, tunnels map[int]*tunnelServer, tunnelConfigs []tunnelConfig, host string) []string {
 	ids := make([]string, 0, len(s.Services))
 	for _, svc := range s.Services {
 		if svc.BindPort == nil || svc.Host == nil {
@@ -209,14 +209,14 @@ func computeReadyServiceIDs(s *state.State, tunnels map[int]*tunnelServer, ratho
 			continue
 		}
 
-		matchesRathole := false
-		for _, r := range ratholes {
+		matchesTunnel := false
+		for _, r := range tunnelConfigs {
 			if *svc.BindPort == r.BindPort {
-				matchesRathole = true
+				matchesTunnel = true
 				break
 			}
 		}
-		if !matchesRathole {
+		if !matchesTunnel {
 			continue
 		}
 
@@ -247,8 +247,8 @@ func computeReadyServiceIDs(s *state.State, tunnels map[int]*tunnelServer, ratho
 	return ids
 }
 
-func onStateChanged(s *state.State, tunnels map[int]*tunnelServer, ratholes []ratholeConfig, host string) {
-	for _, r := range ratholes {
+func onStateChanged(s *state.State, tunnels map[int]*tunnelServer, tunnelConfigs []tunnelConfig, host string) {
+	for _, r := range tunnelConfigs {
 		ts := tunnels[r.BindPort]
 
 		services := make(map[string]serviceAuth)

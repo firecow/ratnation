@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
-type ratholeConfig struct {
+type tunnelConfig struct {
 	Name      string
 	LocalAddr string
 }
@@ -29,7 +29,7 @@ func Command() *cobra.Command {
 	var (
 		councilHost       string
 		lingID            string
-		ratholeArgs       []string
+		tunnelArgs        []string
 		proxyArgs         []string
 		preferredLocation string
 	)
@@ -38,7 +38,7 @@ func Command() *cobra.Command {
 		Use:   "ling",
 		Short: "Start ling",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ratholes, err := parseRatholeArgs(ratholeArgs)
+			tunnelConfigs, err := parseTunnelArgs(tunnelArgs)
 			if err != nil {
 				return err
 			}
@@ -49,24 +49,24 @@ func Command() *cobra.Command {
 			if lingID == "" {
 				lingID = uuid.New().String()
 			}
-			return run(cmd.Context(), councilHost, lingID, preferredLocation, ratholes, proxies)
+			return run(cmd.Context(), councilHost, lingID, preferredLocation, tunnelConfigs, proxies)
 		},
 	}
 
 	cmd.Flags().StringVar(&councilHost, "council-host", "http://localhost:8080", "Council host to synchronize from")
 	cmd.Flags().StringVar(&lingID, "ling-id", "", "Unique ID of this ling instance (auto-generates UUID if omitted)")
-	cmd.Flags().StringArrayVar(&ratholeArgs, "rathole", nil, "Rathole clients (name=STR local_addr=ADDR)")
+	cmd.Flags().StringArrayVar(&tunnelArgs, "tunnel", nil, "Tunnel clients (name=STR local_addr=ADDR)")
 	cmd.Flags().StringArrayVar(&proxyArgs, "proxy", nil, "TCP proxies (name=STR bind_port=N)")
 	cmd.Flags().StringVar(&preferredLocation, "location", "default", "Preferred location identifier")
 
 	return cmd
 }
 
-func parseRatholeArgs(args []string) ([]ratholeConfig, error) {
+func parseTunnelArgs(args []string) ([]tunnelConfig, error) {
 	if len(args) == 0 {
 		return nil, nil
 	}
-	configs := make([]ratholeConfig, 0, len(args))
+	configs := make([]tunnelConfig, 0, len(args))
 	for _, arg := range args {
 		pairs := make(map[string]string)
 		for _, pair := range strings.Split(arg, " ") {
@@ -78,14 +78,14 @@ func parseRatholeArgs(args []string) ([]ratholeConfig, error) {
 
 		name, ok := pairs["name"]
 		if !ok {
-			return nil, fmt.Errorf("--rathole must have 'name' field")
+			return nil, fmt.Errorf("--tunnel must have 'name' field")
 		}
 		localAddr, ok := pairs["local_addr"]
 		if !ok {
-			return nil, fmt.Errorf("--rathole must have 'local_addr' field")
+			return nil, fmt.Errorf("--tunnel must have 'local_addr' field")
 		}
 
-		configs = append(configs, ratholeConfig{Name: name, LocalAddr: localAddr})
+		configs = append(configs, tunnelConfig{Name: name, LocalAddr: localAddr})
 	}
 	return configs, nil
 }
@@ -122,20 +122,20 @@ func parseProxyArgs(args []string) ([]proxyConfig, error) {
 	return configs, nil
 }
 
-func run(ctx context.Context, councilHost, lingID, preferredLocation string, ratholes []ratholeConfig, proxies []proxyConfig) error {
-	// Build rathole name -> local_addr map
-	ratholeMap := make(map[string]string)
-	for _, r := range ratholes {
-		ratholeMap[r.Name] = r.LocalAddr
+func run(ctx context.Context, councilHost, lingID, preferredLocation string, tunnelConfigs []tunnelConfig, proxies []proxyConfig) error {
+	// Build tunnel name -> local_addr map
+	tunnelMap := make(map[string]string)
+	for _, r := range tunnelConfigs {
+		tunnelMap[r.Name] = r.LocalAddr
 	}
 
 	// Only tunnel services get registered with council (not proxy-only names)
-	syncRatholes := make([]syncRathole, 0, len(ratholes))
-	for _, r := range ratholes {
-		syncRatholes = append(syncRatholes, syncRathole{Name: r.Name})
+	syncTunnels := make([]syncTunnel, 0, len(tunnelConfigs))
+	for _, r := range tunnelConfigs {
+		syncTunnels = append(syncTunnels, syncTunnel{Name: r.Name})
 	}
-	if len(syncRatholes) == 0 {
-		syncRatholes = []syncRathole{}
+	if len(syncTunnels) == 0 {
+		syncTunnels = []syncTunnel{}
 	}
 
 	tunnelClient := newTunnelClient()
@@ -159,14 +159,14 @@ func run(ctx context.Context, councilHost, lingID, preferredLocation string, rat
 		if currentState == nil {
 			return []string{}
 		}
-		return computeReadyServiceIDs(currentState, lingID, ratholeMap)
+		return computeReadyServiceIDs(currentState, lingID, tunnelMap)
 	}
 
 	syncerInstance := &lingSyncer{
 		councilHost:       councilHost,
 		lingID:            lingID,
 		preferredLocation: preferredLocation,
-		ratholes:          syncRatholes,
+		tunnels:           syncTunnels,
 		readyServiceIDs:   readyServiceIDs,
 		notify:            make(chan struct{}, 1),
 		shuttingDown: func() bool {
@@ -182,7 +182,7 @@ func run(ctx context.Context, councilHost, lingID, preferredLocation string, rat
 		mu.Lock()
 		currentState = s
 		mu.Unlock()
-		onStateChanged(ctx, s, lingID, ratholeMap, tunnelClient, tcpProxies)
+		onStateChanged(ctx, s, lingID, tunnelMap, tunnelClient, tcpProxies)
 	})
 
 	watcherCtx, watcherCancel := context.WithCancel(ctx)
@@ -225,13 +225,13 @@ func run(ctx context.Context, councilHost, lingID, preferredLocation string, rat
 	return nil
 }
 
-func computeReadyServiceIDs(s *state.State, lingID string, ratholeMap map[string]string) []string {
+func computeReadyServiceIDs(s *state.State, lingID string, tunnelMap map[string]string) []string {
 	ids := make([]string, 0, len(s.Services))
 	for _, svc := range s.Services {
 		if svc.LingID != lingID {
 			continue
 		}
-		if _, ok := ratholeMap[svc.Name]; !ok {
+		if _, ok := tunnelMap[svc.Name]; !ok {
 			continue
 		}
 		if svc.KingReady {
@@ -241,9 +241,9 @@ func computeReadyServiceIDs(s *state.State, lingID string, ratholeMap map[string
 	return ids
 }
 
-func onStateChanged(ctx context.Context, s *state.State, lingID string, ratholeMap map[string]string, tc *tunnelClient, tcpProxies map[string]*tcpProxy) {
+func onStateChanged(ctx context.Context, s *state.State, lingID string, tunnelMap map[string]string, tc *tunnelClient, tcpProxies map[string]*tcpProxy) {
 	kings := buildKingIndex(s)
-	updateTunnelConnections(ctx, s, lingID, ratholeMap, tc, kings)
+	updateTunnelConnections(ctx, s, lingID, tunnelMap, tc, kings)
 	updateProxyTargets(s, tcpProxies, kings)
 }
 
@@ -278,7 +278,7 @@ func buildHealthyLingSet(s *state.State) map[string]bool {
 	return set
 }
 
-func updateTunnelConnections(ctx context.Context, s *state.State, lingID string, ratholeMap map[string]string, tc *tunnelClient, kings map[string]kingIndex) {
+func updateTunnelConnections(ctx context.Context, s *state.State, lingID string, tunnelMap map[string]string, tc *tunnelClient, kings map[string]kingIndex) {
 	groups := make(map[string]*kingGroup)
 	localAddrs := make(map[string]string)
 
@@ -286,7 +286,7 @@ func updateTunnelConnections(ctx context.Context, s *state.State, lingID string,
 		if svc.LingID != lingID {
 			continue
 		}
-		localAddr, isTunnel := ratholeMap[svc.Name]
+		localAddr, isTunnel := tunnelMap[svc.Name]
 		if !isTunnel || svc.BindPort == nil || svc.Host == nil {
 			continue
 		}

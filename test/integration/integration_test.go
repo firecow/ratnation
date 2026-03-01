@@ -104,7 +104,7 @@ func TestZeroDowntimeRedeployment(t *testing.T) {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king1",
-				`--rathole=bind_port=2333 ports=5000-5001`,
+				`--tunnel=bind_port=2333 ports=5000-5001`,
 				"--location=CPH",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -118,7 +118,7 @@ func TestZeroDowntimeRedeployment(t *testing.T) {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king2",
-				`--rathole=bind_port=2334 ports=5002-5003`,
+				`--tunnel=bind_port=2334 ports=5002-5003`,
 				"--location=AMS",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -131,7 +131,7 @@ func TestZeroDowntimeRedeployment(t *testing.T) {
 			cmd: []string{
 				"ling",
 				"--council-host=http://council:8080",
-				`--rathole=name=alpha local_addr=echoserver:8080`,
+				`--tunnel=name=alpha local_addr=echoserver:8080`,
 			},
 			waitStrategy: wait.ForLog("Ready").
 				WithStartupTimeout(60 * time.Second),
@@ -253,7 +253,7 @@ func specForContainer(name string) containerSpec {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king1",
-				`--rathole=bind_port=2333 ports=5000-5001`,
+				`--tunnel=bind_port=2333 ports=5000-5001`,
 				"--location=CPH",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -267,7 +267,7 @@ func specForContainer(name string) containerSpec {
 				"king",
 				"--council-host=http://council:8080",
 				"--host=king2",
-				`--rathole=bind_port=2334 ports=5002-5003`,
+				`--tunnel=bind_port=2334 ports=5002-5003`,
 				"--location=AMS",
 			},
 			waitStrategy: wait.ForLog("Ready").
@@ -280,7 +280,7 @@ func specForContainer(name string) containerSpec {
 			cmd: []string{
 				"ling",
 				"--council-host=http://council:8080",
-				`--rathole=name=alpha local_addr=echoserver:8080`,
+				`--tunnel=name=alpha local_addr=echoserver:8080`,
 			},
 			waitStrategy: wait.ForLog("Ready").
 				WithStartupTimeout(60 * time.Second),

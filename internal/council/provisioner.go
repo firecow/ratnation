@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 )
 
 type availableKingPort struct {

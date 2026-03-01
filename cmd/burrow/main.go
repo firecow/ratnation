@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/firecow/ratnation/internal/council"
-	"github.com/firecow/ratnation/internal/debug"
-	"github.com/firecow/ratnation/internal/king"
-	"github.com/firecow/ratnation/internal/ling"
+	"github.com/firecow/burrow/internal/council"
+	"github.com/firecow/burrow/internal/debug"
+	"github.com/firecow/burrow/internal/king"
+	"github.com/firecow/burrow/internal/ling"
 	"github.com/spf13/cobra"
 )
 

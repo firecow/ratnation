@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firecow/ratnation/internal/state"
+	"github.com/firecow/burrow/internal/state"
 	"github.com/spf13/cobra"
 )
 
