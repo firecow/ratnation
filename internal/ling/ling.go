@@ -465,7 +465,11 @@ func buildKingIndex(stateSnapshot *state.State) map[string]KingIndex {
 
 	for _, king := range stateSnapshot.Kings {
 		addr := net.JoinHostPort(king.Host, strconv.Itoa(king.BindPort))
-		index[addr] = KingIndex{healthy: !king.ShuttingDown, certPEM: king.CertPEM, location: king.Location}
+		index[addr] = KingIndex{
+			healthy:  !king.ShuttingDown,
+			certPEM:  king.CertPEM,
+			location: king.Location,
+		}
 	}
 
 	return index
@@ -596,6 +600,7 @@ func collectProxyTargets(
 	kings map[string]KingIndex,
 ) []ProxyTarget {
 	var allTargets []ProxyTarget
+
 	var preferredTargets []ProxyTarget
 
 	for _, svc := range stateSnapshot.Services {

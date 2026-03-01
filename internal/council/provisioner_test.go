@@ -570,13 +570,13 @@ func TestProvision_NoReprovisioning_WhenNoAvailableKing(t *testing.T) {
 }
 
 func newTestKingWithLocation(
-	host, ports string, bindPort int, shuttingDown bool, location string,
+	host, ports string, bindPort int, location string,
 ) state.King {
 	return state.King{
 		BindPort:     bindPort,
 		Host:         host,
 		Ports:        ports,
-		ShuttingDown: shuttingDown,
+		ShuttingDown: false,
 		Beat:         0,
 		Location:     location,
 		CertPEM:      "",
@@ -589,8 +589,8 @@ func TestProvisionService_PrefersMatchingLocation(t *testing.T) {
 	currentState := &state.State{
 		Revision: 0,
 		Kings: []state.King{
-			newTestKingWithLocation(testHostA, "5000-5001", 2333, false, "us-east"),
-			newTestKingWithLocation(testHostB, "6000-6001", 2334, false, "eu-west"),
+			newTestKingWithLocation(testHostA, "5000-5001", 2333, "us-east"),
+			newTestKingWithLocation(testHostB, "6000-6001", 2334, "eu-west"),
 		},
 		Services: []state.Service{
 			{
@@ -627,8 +627,8 @@ func TestProvisionService_FallsBackWhenPreferredLocationFull(t *testing.T) {
 	currentState := &state.State{
 		Revision: 0,
 		Kings: []state.King{
-			newTestKingWithLocation(testHostA, "5000-5001", 2333, false, "us-east"),
-			newTestKingWithLocation(testHostB, "6000-6000", 2334, false, "eu-west"),
+			newTestKingWithLocation(testHostA, "5000-5001", 2333, "us-east"),
+			newTestKingWithLocation(testHostB, "6000-6000", 2334, "eu-west"),
 		},
 		Services: []state.Service{
 			{
