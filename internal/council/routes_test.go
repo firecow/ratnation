@@ -54,7 +54,7 @@ func TestPutKing_CreatesNewKing(t *testing.T) {
 	payload := putKingRequest{
 		Host:            "1.2.3.4",
 		ShuttingDown:    false,
-		Tunnels:        []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
+		Tunnels:         []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
 		ReadyServiceIDs: []string{},
 		Location:        "CPH",
 	}
@@ -97,7 +97,7 @@ func TestPutKing_UpdatesExistingKing(t *testing.T) {
 	payload := putKingRequest{
 		Host:            "1.2.3.4",
 		ShuttingDown:    false,
-		Tunnels:        []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
+		Tunnels:         []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
 		ReadyServiceIDs: []string{},
 		Location:        "CPH",
 	}
@@ -131,7 +131,7 @@ func TestPutKing_SetsReadyServiceIDs(t *testing.T) {
 	payload := putKingRequest{
 		Host:            "1.2.3.4",
 		ShuttingDown:    false,
-		Tunnels:        []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
+		Tunnels:         []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
 		ReadyServiceIDs: []string{"svc-1"},
 		Location:        "CPH",
 	}
@@ -155,7 +155,7 @@ func TestPutLing_CreatesNewLingAndService(t *testing.T) {
 	payload := putLingRequest{
 		LingID:            "ling-1",
 		ShuttingDown:      false,
-		Tunnels:          []putLingTunnel{{Name: "alpha"}},
+		Tunnels:           []putLingTunnel{{Name: "alpha"}},
 		ReadyServiceIDs:   []string{},
 		PreferredLocation: "CPH",
 	}
@@ -209,7 +209,7 @@ func TestPutLing_DoesNotDuplicateService(t *testing.T) {
 	payload := putLingRequest{
 		LingID:            "ling-1",
 		ShuttingDown:      false,
-		Tunnels:          []putLingTunnel{{Name: "alpha"}},
+		Tunnels:           []putLingTunnel{{Name: "alpha"}},
 		ReadyServiceIDs:   []string{},
 		PreferredLocation: "CPH",
 	}
@@ -237,7 +237,7 @@ func TestPutLing_SetsReadyServiceIDs(t *testing.T) {
 	payload := putLingRequest{
 		LingID:            "ling-1",
 		ShuttingDown:      false,
-		Tunnels:          []putLingTunnel{{Name: "alpha"}},
+		Tunnels:           []putLingTunnel{{Name: "alpha"}},
 		ReadyServiceIDs:   []string{"svc-1"},
 		PreferredLocation: "CPH",
 	}
@@ -260,7 +260,7 @@ func TestPutKing_MissingHost(t *testing.T) {
 
 	payload := putKingRequest{
 		Host:            "",
-		Tunnels:        []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
+		Tunnels:         []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
 		ReadyServiceIDs: []string{},
 		Location:        "CPH",
 	}
@@ -283,7 +283,7 @@ func TestPutLing_MissingLingID(t *testing.T) {
 
 	payload := putLingRequest{
 		LingID:            "",
-		Tunnels:          []putLingTunnel{{Name: "alpha"}},
+		Tunnels:           []putLingTunnel{{Name: "alpha"}},
 		ReadyServiceIDs:   []string{},
 		PreferredLocation: "CPH",
 	}
@@ -311,7 +311,7 @@ func TestPutKing_ShuttingDownUpdatesState(t *testing.T) {
 	payload := putKingRequest{
 		Host:            "1.2.3.4",
 		ShuttingDown:    true,
-		Tunnels:        []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
+		Tunnels:         []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
 		ReadyServiceIDs: []string{},
 		Location:        "CPH",
 	}
@@ -335,7 +335,7 @@ func TestFullProvisioningFlow(t *testing.T) {
 	kingHandler := handlePutKing(s, &mu, hub)
 	kingPayload := putKingRequest{
 		Host:            "1.2.3.4",
-		Tunnels:        []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
+		Tunnels:         []putKingTunnel{{BindPort: 2333, Ports: "5000-5001"}},
 		ReadyServiceIDs: []string{},
 		Location:        "CPH",
 	}
@@ -348,7 +348,7 @@ func TestFullProvisioningFlow(t *testing.T) {
 	lingHandler := handlePutLing(s, &mu, hub)
 	lingPayload := putLingRequest{
 		LingID:            "ling-1",
-		Tunnels:          []putLingTunnel{{Name: "alpha"}},
+		Tunnels:           []putLingTunnel{{Name: "alpha"}},
 		ReadyServiceIDs:   []string{},
 		PreferredLocation: "CPH",
 	}
