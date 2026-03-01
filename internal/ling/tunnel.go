@@ -148,38 +148,38 @@ func (tc *tunnelClient) ensureConnection(ctx context.Context, group *kingGroup, 
 func handleDataStream(stream *quic.Stream, localAddrs map[string]string) {
 	headerBuf := make([]byte, 2)
 	if _, err := io.ReadFull(stream, headerBuf); err != nil {
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 
 	serviceIDLen := binary.BigEndian.Uint16(headerBuf)
 	serviceIDBuf := make([]byte, serviceIDLen)
 	if _, err := io.ReadFull(stream, serviceIDBuf); err != nil {
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 
 	localAddr, ok := localAddrs[string(serviceIDBuf)]
 	if !ok {
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 
 	localConn, err := net.Dial("tcp", localAddr)
 	if err != nil {
 		slog.Error("Failed to dial local service", "local_addr", localAddr, "error", err)
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 
 	done := make(chan struct{})
 	go func() {
 		_, _ = io.Copy(localConn, stream)
-		localConn.Close()
+		_ = localConn.Close()
 		close(done)
 	}()
 	_, _ = io.Copy(stream, localConn)
-	stream.Close()
+	_ = stream.Close()
 	stream.CancelRead(0)
 	<-done
 }

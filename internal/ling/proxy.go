@@ -72,7 +72,7 @@ func (p *tcpProxy) updateTargets(targets []proxyTarget) {
 		addr := proxyTargetAddr(t)
 		if !newAddrs[addr] {
 			for _, conn := range p.upstreams[addr] {
-				conn.Close()
+				_ = conn.Close()
 			}
 			delete(p.upstreams, addr)
 		}
@@ -121,7 +121,7 @@ func (p *tcpProxy) start() error {
 }
 
 func (p *tcpProxy) handleConn(clientConn net.Conn) {
-	defer clientConn.Close()
+	defer func() { _ = clientConn.Close() }()
 
 	deadline := time.After(30 * time.Second)
 
@@ -154,7 +154,7 @@ func (p *tcpProxy) handleConn(clientConn net.Conn) {
 		slog.Error("Failed to dial upstream", "name", p.name, "addr", addr, "error", err)
 		return
 	}
-	defer upstream.Close()
+	defer func() { _ = upstream.Close() }()
 
 	p.trackUpstream(addr, upstream)
 	defer p.untrackUpstream(addr, upstream)
@@ -171,7 +171,7 @@ func (p *tcpProxy) handleConn(clientConn net.Conn) {
 func (p *tcpProxy) close() {
 	p.closeOnce.Do(func() {
 		if p.listener != nil {
-			p.listener.Close()
+			_ = p.listener.Close()
 		}
 		p.mu.Lock()
 		select {

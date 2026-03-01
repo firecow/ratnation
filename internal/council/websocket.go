@@ -54,7 +54,7 @@ func (h *wsHub) closeAll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for conn := range h.clients {
-		conn.Close(websocket.StatusGoingAway, "server shutting down")
+		_ = conn.Close(websocket.StatusGoingAway, "server shutting down")
 		delete(h.clients, conn)
 	}
 }

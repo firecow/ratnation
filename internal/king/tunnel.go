@@ -33,9 +33,9 @@ type tunnelServer struct {
 	bindPort        int
 	tlsConfig       *tls.Config
 	mu              sync.RWMutex
-	services        map[string]serviceAuth     // service_id -> auth
-	tcpListeners    map[int]net.Listener       // remote_port -> listener
-	quicConns       map[string]*quic.Conn // service_id -> QUIC connection
+	services        map[string]serviceAuth // service_id -> auth
+	tcpListeners    map[int]net.Listener   // remote_port -> listener
+	quicConns       map[string]*quic.Conn  // service_id -> QUIC connection
 	onLingConnected func()
 }
 
@@ -72,7 +72,7 @@ func (ts *tunnelServer) run(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		listener.Close()
+		_ = listener.Close()
 	}()
 
 	for ctx.Err() == nil {
@@ -98,7 +98,7 @@ func (ts *tunnelServer) handleConnection(conn *quic.Conn) {
 	var messages []controlMessage
 	if err := decoder.Decode(&messages); err != nil {
 		slog.Error("Failed to decode control messages", "error", err)
-		stream.Close()
+		_ = stream.Close()
 		_ = conn.CloseWithError(1, "invalid control message")
 		return
 	}
@@ -110,7 +110,7 @@ func (ts *tunnelServer) handleConnection(conn *quic.Conn) {
 		if !exists || auth.token != msg.Token {
 			ts.mu.RUnlock()
 			slog.Error("Invalid token for service", "service_id", msg.ServiceID)
-			stream.Close()
+			_ = stream.Close()
 			_ = conn.CloseWithError(2, "authentication failed")
 			return
 		}
@@ -181,14 +181,14 @@ func (ts *tunnelServer) removeTCPListener(remotePort int) {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	if listener, exists := ts.tcpListeners[remotePort]; exists {
-		listener.Close()
+		_ = listener.Close()
 		delete(ts.tcpListeners, remotePort)
 		slog.Info("TCP listener removed", "remote_port", remotePort)
 	}
 }
 
 func (ts *tunnelServer) handleTCPConnection(tcpConn net.Conn, serviceID string) {
-	defer tcpConn.Close()
+	defer func() { _ = tcpConn.Close() }()
 
 	ts.mu.RLock()
 	quicConn, exists := ts.quicConns[serviceID]
@@ -210,24 +210,24 @@ func (ts *tunnelServer) handleTCPConnection(tcpConn net.Conn, serviceID string) 
 	serviceIDBytes := []byte(serviceID)
 	serviceIDLen := len(serviceIDBytes)
 	if serviceIDLen > math.MaxUint16 {
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 	header := make([]byte, 2)
 	binary.BigEndian.PutUint16(header, uint16(serviceIDLen))
 	if _, err := stream.Write(header); err != nil {
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 	if _, err := stream.Write(serviceIDBytes); err != nil {
-		stream.Close()
+		_ = stream.Close()
 		return
 	}
 
 	done := make(chan struct{})
 	go func() {
 		_, _ = io.Copy(stream, tcpConn)
-		stream.Close()
+		_ = stream.Close()
 		close(done)
 	}()
 	_, _ = io.Copy(tcpConn, stream)
@@ -239,7 +239,7 @@ func (ts *tunnelServer) close() {
 	ts.mu.Lock()
 	defer ts.mu.Unlock()
 	for port, listener := range ts.tcpListeners {
-		listener.Close()
+		_ = listener.Close()
 		delete(ts.tcpListeners, port)
 	}
 	for serviceID, conn := range ts.quicConns {

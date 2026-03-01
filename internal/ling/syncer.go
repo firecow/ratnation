@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -74,19 +76,28 @@ func (s *lingSyncer) sync(ctx context.Context) {
 		return
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, s.councilHost+"/ling", bytes.NewReader(body))
+	baseURL, err := url.Parse(s.councilHost)
 	if err != nil {
-		slog.Error("Failed to create ling sync request", "error", err)
+		slog.Error("Failed to parse council host URL", "error", err)
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
+	syncURL := baseURL.JoinPath("/ling")
+
+	req := &http.Request{
+		Method: http.MethodPut,
+		URL:    syncURL,
+		Host:   syncURL.Host,
+		Header: http.Header{"Content-Type": {"application/json"}},
+		Body:   io.NopCloser(bytes.NewReader(body)),
+	}
+	req = req.WithContext(ctx)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Error("Failed to sync with council", "error", err)
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		slog.Error("Failed to sync with council", "status_code", resp.StatusCode)

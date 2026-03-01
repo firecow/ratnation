@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -64,22 +65,30 @@ func (w *Watcher) WaitForState(ctx context.Context) error {
 }
 
 func (w *Watcher) fetchState(ctx context.Context) {
-	url := w.councilHost + "/state"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	baseURL, err := url.Parse(w.councilHost)
 	if err != nil {
-		slog.Error("Failed to create state request", "error", err)
+		slog.Error("Failed to parse council host URL", "error", err)
 		return
 	}
+	stateURL := baseURL.JoinPath("/state")
+
+	req := &http.Request{
+		Method: http.MethodGet,
+		URL:    stateURL,
+		Host:   stateURL.Host,
+	}
+	req = req.WithContext(ctx)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Error("Failed to fetch state from council", "error", err)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		slog.Error("Failed to fetch state from council", "status_code", resp.StatusCode)
+	statusCode := resp.StatusCode
+	if statusCode != http.StatusOK {
+		slog.Error("Failed to fetch state from council", "status_code", statusCode)
 		return
 	}
 
@@ -115,7 +124,7 @@ func (w *Watcher) listenWebSocket(ctx context.Context) {
 
 		conn, resp, err := websocket.Dial(ctx, wsURL, nil)
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		if err != nil {
 			slog.Error("WebSocket connection failed", "error", err)

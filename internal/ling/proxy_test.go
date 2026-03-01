@@ -13,13 +13,13 @@ func TestTCPProxy_RoundRobin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer backend1.Close()
+	defer func() { _ = backend1.Close() }()
 
 	backend2, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer backend2.Close()
+	defer func() { _ = backend2.Close() }()
 
 	go echoServer(backend1, "backend1")
 	go echoServer(backend2, "backend2")
@@ -88,7 +88,7 @@ func TestTCPProxy_NoTargets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Should close quickly since no targets
 	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
@@ -106,7 +106,7 @@ func echoServer(listener net.Listener, name string) {
 			return
 		}
 		go func(c net.Conn) {
-			defer c.Close()
+			defer func() { _ = c.Close() }()
 			prefix := []byte(name + ":")
 			_, _ = c.Write(prefix)
 			_, _ = io.Copy(c, c)
@@ -119,7 +119,7 @@ func TestTCPProxy_UpdateTargets_ClosesRemovedUpstreams(t *testing.T) {
 
 	// Create a mock connection using net.Pipe
 	server, client := net.Pipe()
-	defer server.Close()
+	defer func() { _ = server.Close() }()
 
 	targetAddr := "10.0.0.1:5000"
 	proxy.trackUpstream(targetAddr, client)
@@ -158,11 +158,11 @@ func TestTCPProxy_UpdateTargets_KeepsRemainingUpstreams(t *testing.T) {
 	proxy := newTCPProxy("test", 0)
 
 	keepServer, keepClient := net.Pipe()
-	defer keepServer.Close()
-	defer keepClient.Close()
+	defer func() { _ = keepServer.Close() }()
+	defer func() { _ = keepClient.Close() }()
 
 	removeServer, removeClient := net.Pipe()
-	defer removeServer.Close()
+	defer func() { _ = removeServer.Close() }()
 
 	keepAddr := "10.0.0.1:5000"
 	removeAddr := "10.0.0.2:5000"
@@ -259,7 +259,7 @@ func dialAndSend(t *testing.T, addr string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	_ = conn.SetDeadline(time.Now().Add(time.Second))
 

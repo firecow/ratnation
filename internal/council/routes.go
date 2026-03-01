@@ -133,7 +133,7 @@ func handlePutKing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 		mu.Unlock()
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}
 }
 
@@ -206,7 +206,7 @@ func handlePutLing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 			if existingService != nil {
 				mu.Unlock()
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-				fmt.Fprint(w, "ok")
+				_, _ = fmt.Fprint(w, "ok")
 				return
 			}
 
@@ -233,7 +233,7 @@ func handlePutLing(s *state.State, mu *sync.RWMutex, hub *wsHub) http.HandlerFun
 		mu.Unlock()
 
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		fmt.Fprint(w, "ok")
+		_, _ = fmt.Fprint(w, "ok")
 	}
 }
 

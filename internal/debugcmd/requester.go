@@ -1,9 +1,10 @@
-package debug
+package debugcmd
 
 import (
 	"context"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -30,12 +31,17 @@ func Command() *cobra.Command {
 	return cmd
 }
 
-func runRequester(ctx context.Context, url string, interval time.Duration) error {
+func runRequester(ctx context.Context, rawURL string, interval time.Duration) error {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return err
+	}
+
 	client := &http.Client{
 		Timeout: 1 * time.Second,
 	}
 
-	tick(ctx, client, url)
+	tick(ctx, client, parsedURL)
 
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -45,29 +51,31 @@ func runRequester(ctx context.Context, url string, interval time.Duration) error
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			tick(ctx, client, url)
+			tick(ctx, client, parsedURL)
 		}
 	}
 }
 
-func tick(ctx context.Context, client *http.Client, url string) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		slog.Error("Request error", "error", err)
-		return
+func tick(ctx context.Context, client *http.Client, targetURL *url.URL) {
+	req := &http.Request{
+		Method: http.MethodGet,
+		URL:    targetURL,
+		Host:   targetURL.Host,
 	}
+	req = req.WithContext(ctx)
 
 	resp, err := client.Do(req)
 	if err != nil {
 		slog.Error("Request error", "error", err)
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		slog.Error("Request failed", "status_code", resp.StatusCode)
+	statusCode := resp.StatusCode
+	if statusCode != http.StatusOK {
+		slog.Error("Request failed", "status_code", statusCode)
 		return
 	}
 
-	slog.Info("Request successful", "status_code", resp.StatusCode)
+	slog.Info("Request successful", "status_code", statusCode)
 }
