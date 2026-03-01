@@ -21,7 +21,6 @@ import (
 const (
 	keyValueParts           = 2
 	finalSyncTimeout        = 2 * time.Second
-	shutdownGracePeriod     = 750 * time.Millisecond
 	quicErrorCodeCloseClean = 0
 )
 
@@ -373,7 +372,6 @@ func performShutdown(
 	defer finalCancel()
 
 	syncerInstance.sync(finalCtx)
-	time.Sleep(shutdownGracePeriod)
 
 	tunnelCli.closeAll()
 

@@ -55,6 +55,7 @@ type TunnelServer struct {
 	services        map[string]ServiceAuth
 	tcpListeners    map[int]net.Listener
 	quicConns       map[string]*quic.Conn
+	drainNotify     chan struct{}
 	onLingConnected func()
 }
 
@@ -69,6 +70,7 @@ func NewTunnelServer(
 		services:        make(map[string]ServiceAuth),
 		tcpListeners:    make(map[int]net.Listener),
 		quicConns:       make(map[string]*quic.Conn),
+		drainNotify:     make(chan struct{}, 1),
 		onLingConnected: nil,
 	}
 }
@@ -290,7 +292,35 @@ func (tunnelSrv *TunnelServer) unregisterConnections(
 		}
 	}
 
+	empty := len(tunnelSrv.quicConns) == 0
 	tunnelSrv.mu.Unlock()
+
+	if empty {
+		select {
+		case tunnelSrv.drainNotify <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func (tunnelSrv *TunnelServer) waitForDrain(
+	ctx context.Context,
+) {
+	for {
+		tunnelSrv.mu.RLock()
+		empty := len(tunnelSrv.quicConns) == 0
+		tunnelSrv.mu.RUnlock()
+
+		if empty {
+			return
+		}
+
+		select {
+		case <-tunnelSrv.drainNotify:
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (tunnelSrv *TunnelServer) ensureTCPListener(

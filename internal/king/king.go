@@ -25,7 +25,7 @@ const (
 	defaultCouncilHost = "http://localhost:8080"
 	kvPairCount        = 2
 	finalSyncTimeout   = 2 * time.Second
-	shutdownGracePause = 1 * time.Second
+	quicDrainTimeout   = 5 * time.Second
 	certValidityYears  = 10 * 365 * 24 * time.Hour
 )
 
@@ -289,7 +289,24 @@ func performShutdown(
 
 	syncerInstance.sync(finalCtx)
 
-	time.Sleep(shutdownGracePause)
+	drainCtx, drainCancel := context.WithTimeout(
+		context.WithoutCancel(ctx), quicDrainTimeout,
+	)
+	defer drainCancel()
+
+	var drainWg sync.WaitGroup
+
+	for _, tunnelSrv := range tunnels {
+		drainWg.Add(1)
+
+		go func(srv *TunnelServer) {
+			defer drainWg.Done()
+
+			srv.waitForDrain(drainCtx)
+		}(tunnelSrv)
+	}
+
+	drainWg.Wait()
 
 	for _, tunnelSrv := range tunnels {
 		tunnelSrv.close()
