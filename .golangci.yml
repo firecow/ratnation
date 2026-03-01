@@ -1,3 +1,9 @@
+version: "2"
+
+formatters:
+  enable:
+    - gofmt
+
 linters:
   enable:
     - bodyclose
@@ -6,7 +12,6 @@ linters:
     - errorlint
     - gocognit
     - gocritic
-    - gofmt
     - gosec
     - govet
     - ineffassign
@@ -19,25 +24,24 @@ linters:
     - unparam
     - unused
     - wastedassign
-
-linters-settings:
-  gocognit:
-    min-complexity: 30
-  revive:
-    rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: exported
-        disabled: true
-      - name: increment-decrement
-      - name: indent-error-flow
-      - name: range
-      - name: receiver-naming
-      - name: redefines-builtin-id
-      - name: time-naming
-      - name: unexported-return
-      - name: var-declaration
-      - name: var-naming
+  settings:
+    gocognit:
+      min-complexity: 30
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: exported
+          disabled: true
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: time-naming
+        - name: unexported-return
+        - name: var-declaration
+        - name: var-naming

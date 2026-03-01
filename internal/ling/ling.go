@@ -69,7 +69,7 @@ func parseTunnelArgs(args []string) ([]tunnelConfig, error) {
 	configs := make([]tunnelConfig, 0, len(args))
 	for _, arg := range args {
 		pairs := make(map[string]string)
-		for _, pair := range strings.Split(arg, " ") {
+		for pair := range strings.SplitSeq(arg, " ") {
 			parts := strings.SplitN(pair, "=", 2)
 			if len(parts) == 2 {
 				pairs[parts[0]] = parts[1]
@@ -97,7 +97,7 @@ func parseProxyArgs(args []string) ([]proxyConfig, error) {
 	configs := make([]proxyConfig, 0, len(args))
 	for _, arg := range args {
 		pairs := make(map[string]string)
-		for _, pair := range strings.Split(arg, " ") {
+		for pair := range strings.SplitSeq(arg, " ") {
 			parts := strings.SplitN(pair, "=", 2)
 			if len(parts) == 2 {
 				pairs[parts[0]] = parts[1]
